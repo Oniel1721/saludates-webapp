@@ -163,3 +163,112 @@ export function getMondayOf(date: Date): Date {
 export function isToday(dateStr: string): boolean {
   return dateStr === toDateString(new Date());
 }
+
+// ─── Conversations ────────────────────────────────────────────────────────────
+
+export type ConversationFlow =
+  | "creating-appointment"
+  | "confirming"
+  | "cancelling"
+  | "rescheduling"
+  | "querying-services"
+  | "out-of-flow"
+  | "escalated";
+
+export const FLOW_LABEL: Record<ConversationFlow, string> = {
+  "creating-appointment": "Agendando cita",
+  confirming:             "Esperando confirmación",
+  cancelling:             "Cancelando cita",
+  rescheduling:           "Reagendando cita",
+  "querying-services":    "Consultando servicios",
+  "out-of-flow":          "Fuera del flujo",
+  escalated:              "Escalada",
+};
+
+export type Message = {
+  id: number;
+  sender: "patient" | "bot";
+  text: string;
+  time: string; // "10:32"
+};
+
+export type Conversation = {
+  id: number;
+  patientName: string;
+  patientPhone: string;
+  patientId: number;
+  flow: ConversationFlow;
+  isEscalated: boolean;
+  lastMessageAgo: string;   // "hace 5 min"
+  lastMessagePreview: string;
+  relatedAppointmentId?: number;
+  messages: Message[];
+};
+
+export const MOCK_CONVERSATIONS: Conversation[] = [
+  {
+    id: 1,
+    patientName: "Juan Pérez",
+    patientPhone: "18091234567",
+    patientId: 1,
+    flow: "escalated",
+    isEscalated: true,
+    lastMessageAgo: "hace 5 min",
+    lastMessagePreview: "No entiendo lo que me estás preguntando",
+    relatedAppointmentId: 13,
+    messages: [
+      { id: 1, sender: "patient", text: "Hola, quiero cambiar mi cita para el viernes", time: "10:20" },
+      { id: 2, sender: "bot",     text: "Claro, ¿tiene preferencia de horario para el viernes?", time: "10:20" },
+      { id: 3, sender: "patient", text: "No entiendo lo que me estás preguntando", time: "10:25" },
+      { id: 4, sender: "bot",     text: "Te estoy transfiriendo con la secretaria, en un momento te atiende.", time: "10:25" },
+    ],
+  },
+  {
+    id: 2,
+    patientName: "María Rodríguez",
+    patientPhone: "18291234567",
+    patientId: 2,
+    flow: "confirming",
+    isEscalated: false,
+    lastMessageAgo: "hace 2 horas",
+    lastMessagePreview: "Sí, confirmo mi cita para mañana",
+    relatedAppointmentId: 11,
+    messages: [
+      { id: 1, sender: "bot",     text: "Hola María, te recuerdo que tienes una cita mañana viernes 6 de marzo a las 9:00 AM para Consulta de seguimiento. ¿Confirmas tu asistencia?", time: "08:00" },
+      { id: 2, sender: "patient", text: "Sí, confirmo mi cita para mañana", time: "08:05" },
+      { id: 3, sender: "bot",     text: "¡Perfecto! Tu cita está confirmada. Te esperamos mañana a las 9:00 AM.", time: "08:05" },
+    ],
+  },
+  {
+    id: 3,
+    patientName: "Carlos Martínez",
+    patientPhone: "18491234567",
+    patientId: 3,
+    flow: "rescheduling",
+    isEscalated: false,
+    lastMessageAgo: "hace 10 min",
+    lastMessagePreview: "¿Tienen disponibilidad el lunes?",
+    relatedAppointmentId: 12,
+    messages: [
+      { id: 1, sender: "patient", text: "Necesito reagendar mi cita de hoy", time: "09:50" },
+      { id: 2, sender: "bot",     text: "Entendido. ¿Para cuándo te gustaría reagendar?", time: "09:50" },
+      { id: 3, sender: "patient", text: "¿Tienen disponibilidad el lunes?", time: "09:55" },
+      { id: 4, sender: "bot",     text: "El lunes 9 de marzo tenemos disponibilidad a las 9:00 AM, 10:30 AM y 2:00 PM. ¿Cuál prefieres?", time: "09:55" },
+    ],
+  },
+  {
+    id: 4,
+    patientName: "Ana García",
+    patientPhone: "18091234568",
+    patientId: 4,
+    flow: "querying-services",
+    isEscalated: false,
+    lastMessageAgo: "hace 30 min",
+    lastMessagePreview: "¿Cuánto cuesta la espirometría?",
+    messages: [
+      { id: 1, sender: "patient", text: "¿Cuánto cuesta la espirometría?", time: "09:30" },
+      { id: 2, sender: "bot",     text: "La Espirometría tiene un costo de RD$2,500 y una duración de 45 minutos. ¿Deseas agendar una cita?", time: "09:30" },
+      { id: 3, sender: "patient", text: "Déjame pensarlo, gracias", time: "09:32" },
+    ],
+  },
+];
