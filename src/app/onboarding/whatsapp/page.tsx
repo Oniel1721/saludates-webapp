@@ -2,12 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { DevPanel } from "@/components/dev-panel";
 import { Loader2, CheckCircle2, RefreshCw } from "lucide-react";
+
+const schema = z.object({
+  phone: z
+    .string()
+    .min(1, "Este campo es requerido.")
+    .regex(/^\+?[\d\s\(\)\-]{7,}$/, "Ingresa un número de teléfono válido."),
+});
+
+type FormValues = z.infer<typeof schema>;
 
 type PageState =
   | "entering-number"
@@ -33,8 +45,12 @@ const QR_TIMEOUT = 60;
 export default function OnboardingWhatsAppPage() {
   const router = useRouter();
   const [state, setState] = useState<PageState>("entering-number");
-  const [phone, setPhone] = useState("");
   const [timer, setTimer] = useState(QR_TIMEOUT);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { phone: "" },
+  });
 
   useEffect(() => {
     if (state !== "qr-visible") return;
@@ -52,13 +68,14 @@ export default function OnboardingWhatsAppPage() {
     return () => clearInterval(interval);
   }, [state]);
 
-  function handleGenerateQR() {
+  function onSubmit() {
     setState("generating-qr");
     setTimeout(() => setState("qr-visible"), 1500);
   }
 
-  function handleContinue() {
-    router.push("/onboarding/services");
+  function handleGenerateQR() {
+    setState("generating-qr");
+    setTimeout(() => setState("qr-visible"), 1500);
   }
 
   const minutes = Math.floor(timer / 60);
@@ -76,27 +93,33 @@ export default function OnboardingWhatsAppPage() {
         </div>
 
         <div className="flex flex-col gap-6">
-          {/* Phone number */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="phone">Número de WhatsApp del consultorio</Label>
-            <div className="flex gap-2">
-              <Input
-                id="phone"
-                placeholder="+1 (809) 000-0000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={state !== "entering-number"}
-                className="flex-1"
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Número de WhatsApp del consultorio</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder="+1 (809) 000-0000"
+                          disabled={state !== "entering-number"}
+                          {...field}
+                        />
+                      </FormControl>
+                      {state === "entering-number" && (
+                        <Button type="submit">Generar QR</Button>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              {state === "entering-number" && (
-                <Button onClick={handleGenerateQR} disabled={!phone.trim()}>
-                  Generar QR
-                </Button>
-              )}
-            </div>
-          </div>
+            </form>
+          </Form>
 
-          {/* QR area */}
           {state === "generating-qr" && (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 p-8">
               <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
@@ -107,10 +130,8 @@ export default function OnboardingWhatsAppPage() {
           {(state === "qr-visible" || state === "qr-expired") && (
             <div className="flex flex-col items-center gap-4">
               <div className={`relative rounded-xl border-2 p-4 ${state === "qr-expired" ? "border-zinc-200 opacity-40" : "border-zinc-200"}`}>
-                {/* Mock QR code */}
                 <svg viewBox="0 0 100 100" className="h-48 w-48" aria-label="Código QR">
                   <rect width="100" height="100" fill="white" />
-                  {/* Finder patterns */}
                   <rect x="5" y="5" width="30" height="30" fill="black" rx="2" />
                   <rect x="8" y="8" width="24" height="24" fill="white" rx="1" />
                   <rect x="11" y="11" width="18" height="18" fill="black" rx="1" />
@@ -120,15 +141,14 @@ export default function OnboardingWhatsAppPage() {
                   <rect x="5" y="65" width="30" height="30" fill="black" rx="2" />
                   <rect x="8" y="68" width="24" height="24" fill="white" rx="1" />
                   <rect x="11" y="71" width="18" height="18" fill="black" rx="1" />
-                  {/* Data modules (simplified) */}
                   {[40,45,50,55,60].map((x) =>
                     [5,10,15,20,25,30].map((y) => (
-                      <rect key={`${x}-${y}`} x={x} y={y} width="4" height="4" fill={Math.random() > 0.5 ? "black" : "white"} />
+                      <rect key={`${x}-${y}`} x={x} y={y} width="4" height="4" fill={(x + y) % 7 < 3 ? "black" : "white"} />
                     ))
                   )}
-                  {[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85,90].map((x) =>
-                    [40,45,50,55,60,65,70,75,80,85,90].map((y) => (
-                      <rect key={`d-${x}-${y}`} x={x} y={y} width="4" height="4" fill={(x + y) % 9 < 4 ? "black" : "white"} />
+                  {[5,15,25,35,45,55,65,75,85].map((x) =>
+                    [40,50,60,70,80,90].map((y) => (
+                      <rect key={`d-${x}-${y}`} x={x} y={y} width="4" height="4" fill={(x * y) % 11 < 5 ? "black" : "white"} />
                     ))
                   )}
                 </svg>
@@ -184,7 +204,7 @@ export default function OnboardingWhatsAppPage() {
         </div>
 
         <Button
-          onClick={handleContinue}
+          onClick={() => router.push("/onboarding/services")}
           disabled={state !== "connected"}
           className="w-full"
         >

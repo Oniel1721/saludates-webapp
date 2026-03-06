@@ -2,35 +2,40 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { DevPanel } from "@/components/dev-panel";
 import { Loader2 } from "lucide-react";
 
-type PageState = "idle" | "saving" | "validation-error";
+const schema = z.object({
+  name: z.string().min(1, "Este campo es requerido."),
+  address: z.string().min(1, "Este campo es requerido."),
+});
+
+type FormValues = z.infer<typeof schema>;
+type PageState = "idle" | "saving";
 
 const DEV_STATES = [
   { label: "Vacío", value: "idle" as PageState },
-  { label: "Error de validación", value: "validation-error" as PageState },
   { label: "Guardando", value: "saving" as PageState },
 ];
 
 export default function OnboardingClinicPage() {
   const router = useRouter();
-  const [state, setState] = useState<PageState>("idle");
-  const [name, setName] = useState("");
-  const [address, setAddress] = useState("");
+  const [pageState, setPageState] = useState<PageState>("idle");
 
-  const hasData = name.trim().length > 0 && address.trim().length > 0;
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", address: "" },
+  });
 
-  function handleContinue() {
-    if (!hasData) {
-      setState("validation-error");
-      return;
-    }
-    setState("saving");
+  function onSubmit() {
+    setPageState("saving");
     setTimeout(() => router.push("/onboarding/whatsapp"), 1000);
   }
 
@@ -45,52 +50,52 @@ export default function OnboardingClinicPage() {
           <p className="text-sm text-zinc-500">Así se identificará tu consultorio con los pacientes.</p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="name">Nombre del consultorio</Label>
-            <Input
-              id="name"
-              placeholder="Ej: Consultorio Dra. Martínez"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nombre del consultorio</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Consultorio Dra. Martínez" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {state === "validation-error" && !name.trim() && (
-              <p className="text-xs text-red-500">Este campo es requerido.</p>
-            )}
-          </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="address">Dirección</Label>
-            <Input
-              id="address"
-              placeholder="Ej: Calle El Sol #45, Santiago"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dirección</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ej: Calle El Sol #45, Santiago" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            {state === "validation-error" && !address.trim() && (
-              <p className="text-xs text-red-500">Este campo es requerido.</p>
-            )}
-          </div>
-        </div>
 
-        <Button
-          onClick={handleContinue}
-          disabled={state === "saving"}
-          className="w-full"
-        >
-          {state === "saving" ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Guardando...
-            </>
-          ) : (
-            "Continuar"
-          )}
-        </Button>
+            <Button type="submit" disabled={pageState === "saving"} className="w-full mt-2">
+              {pageState === "saving" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Continuar"
+              )}
+            </Button>
+          </form>
+        </Form>
 
       </div>
 
-      <DevPanel states={DEV_STATES} current={state} onSelect={setState} />
+      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }
