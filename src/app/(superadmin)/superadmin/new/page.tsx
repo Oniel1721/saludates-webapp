@@ -18,13 +18,14 @@ import {
 import { PhoneInput } from "@/components/ui/phone-input";
 import { DevPanel } from "@/components/dev-panel";
 import { drPhoneSchema } from "@/lib/phone";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2, Plus, X } from "lucide-react";
 
 const schema = z.object({
   clinicName: z.string().min(1, "Este campo es requerido."),
   doctorName: z.string().min(1, "Este campo es requerido."),
   phone:      drPhoneSchema,
   plan:       z.enum(["basic", "professional"]),
+  emails:     z.array(z.email("Correo inválido.")).min(1, "Agrega al menos un correo."),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -52,6 +53,8 @@ const PLANS = [
 export default function SuperadminCreatePage() {
   const router = useRouter();
   const [pageState, setPageState] = useState<PageState>("idle");
+  const [emailInput, setEmailInput] = useState("");
+  const [emailInputError, setEmailInputError] = useState("");
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(schema),
@@ -60,8 +63,45 @@ export default function SuperadminCreatePage() {
       doctorName: "",
       phone: "",
       plan: "professional",
+      emails: [],
     },
   });
+
+  const emails = form.watch("emails");
+
+  function addEmail() {
+    const trimmed = emailInput.trim().toLowerCase();
+    if (!trimmed) return;
+
+    const result = z.email().safeParse(trimmed);
+    if (!result.success) {
+      setEmailInputError("Correo electrónico inválido.");
+      return;
+    }
+    if (emails.includes(trimmed)) {
+      setEmailInputError("Este correo ya fue agregado.");
+      return;
+    }
+
+    form.setValue("emails", [...emails, trimmed], { shouldValidate: true });
+    setEmailInput("");
+    setEmailInputError("");
+  }
+
+  function removeEmail(email: string) {
+    form.setValue(
+      "emails",
+      emails.filter((e) => e !== email),
+      { shouldValidate: true }
+    );
+  }
+
+  function handleEmailKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addEmail();
+    }
+  }
 
   function onSubmit() {
     setPageState("saving");
@@ -128,6 +168,70 @@ export default function SuperadminCreatePage() {
                       onBlur={field.onBlur}
                     />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Emails */}
+            <FormField
+              control={form.control}
+              name="emails"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Correos autorizados</FormLabel>
+
+                  {/* Input row */}
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="correo@ejemplo.com"
+                      value={emailInput}
+                      onChange={(e) => {
+                        setEmailInput(e.target.value);
+                        setEmailInputError("");
+                      }}
+                      onKeyDown={handleEmailKeyDown}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={addEmail}
+                      className="shrink-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Inline input error */}
+                  {emailInputError && (
+                    <p className="text-xs text-red-500">{emailInputError}</p>
+                  )}
+
+                  {/* Email chips */}
+                  {emails.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {emails.map((email) => (
+                        <span
+                          key={email}
+                          className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => removeEmail(email)}
+                            className="text-zinc-400 hover:text-zinc-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* RHF validation error (min 1) */}
                   <FormMessage />
                 </FormItem>
               )}
