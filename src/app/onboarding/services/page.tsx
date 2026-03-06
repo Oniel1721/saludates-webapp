@@ -109,6 +109,7 @@ export default function OnboardingServicesPage() {
         onClose={() => setModalOpen(false)}
         onSave={handleSave}
         initial={editingService}
+        showPriceWarning={false}
       />
 
       <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />

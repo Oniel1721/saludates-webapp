@@ -50,9 +50,10 @@ type ServiceModalProps = {
   onClose: () => void;
   onSave: (data: ServiceData) => void;
   initial?: ServiceData;
+  showPriceWarning?: boolean;
 };
 
-export function ServiceModal({ open, onClose, onSave, initial }: ServiceModalProps) {
+export function ServiceModal({ open, onClose, onSave, initial, showPriceWarning = true }: ServiceModalProps) {
   const isEditing = !!initial;
 
   const form = useForm<FormValues>({
@@ -168,7 +169,7 @@ export function ServiceModal({ open, onClose, onSave, initial }: ServiceModalPro
               )}
             />
 
-            {priceChanged && (
+            {showPriceWarning && priceChanged && (
               <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 Al cambiar el precio, las citas anteriores conservarán el precio original. El nuevo precio aplicará solo a citas nuevas.
               </p>

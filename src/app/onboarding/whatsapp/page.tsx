@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
+import { drPhoneSchema, formatPhone, parsePhone } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -13,10 +14,7 @@ import { DevPanel } from "@/components/dev-panel";
 import { Loader2, CheckCircle2, RefreshCw } from "lucide-react";
 
 const schema = z.object({
-  phone: z
-    .string()
-    .min(1, "Este campo es requerido.")
-    .regex(/^\+?[\d\s\(\)\-]{7,}$/, "Ingresa un número de teléfono válido."),
+  phone: drPhoneSchema,
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -106,7 +104,10 @@ export default function OnboardingWhatsAppPage() {
                         <Input
                           placeholder="+1 (809) 000-0000"
                           disabled={state !== "entering-number"}
-                          {...field}
+                          inputMode="tel"
+                          value={field.value ? formatPhone(field.value) : ""}
+                          onChange={(e) => field.onChange(parsePhone(e.target.value))}
+                          onBlur={field.onBlur}
                         />
                       </FormControl>
                       {state === "entering-number" && (
