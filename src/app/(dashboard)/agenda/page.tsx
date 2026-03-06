@@ -122,28 +122,30 @@ export default function AgendaDayPage() {
             ))}
 
             {/* Appointments */}
-            {dayAppointments.map((appt) => (
+            {dayAppointments.map((appt) => {
+              const h = getHeight(appt.durationMinutes);
+              return (
               <button
                 key={appt.id}
                 onClick={() => setSelected(appt)}
-                className={`absolute left-14 right-2 rounded-md border px-2 py-1 text-left transition-opacity hover:opacity-80 ${STATUS_COLORS[appt.status]}`}
+                className={`absolute left-14 right-2 overflow-hidden rounded-md border px-2 py-1 text-left transition-opacity hover:opacity-80 ${STATUS_COLORS[appt.status]}`}
                 style={{
                   top: getTop(appt.startTime),
-                  height: getHeight(appt.durationMinutes),
+                  height: h,
                 }}
               >
                 <div className="flex items-center gap-1.5 overflow-hidden">
                   <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[appt.status]}`} />
                   <span className="truncate text-xs font-medium">{appt.patientName}</span>
                 </div>
-                {appt.durationMinutes >= 30 && (
+                {h >= 42 && (
                   <p className="truncate text-xs opacity-70">{appt.service}</p>
                 )}
-                {appt.durationMinutes >= 30 && (
+                {h >= 56 && (
                   <p className="text-xs opacity-60">{appt.startTime} – {appt.endTime}</p>
                 )}
               </button>
-            ))}
+            )})}
 
             {/* Empty state */}
             {isEmpty && !showClosed && (
