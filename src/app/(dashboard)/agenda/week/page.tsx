@@ -132,7 +132,7 @@ export default function AgendaWeekPage() {
 
                 {isClosed && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[10px] text-zinc-300 rotate-[-90deg] whitespace-nowrap">Cerrado</span>
+                    <span className="text-[10px] text-zinc-300 -rotate-90 whitespace-nowrap">Cerrado</span>
                   </div>
                 )}
 
