@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
-import { drPhoneSchema, formatPhone, parsePhone } from "@/lib/phone";
+import { drPhoneSchema } from "@/lib/phone";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { DevPanel } from "@/components/dev-panel";
@@ -101,13 +101,11 @@ export default function OnboardingWhatsAppPage() {
                     <FormLabel>Número de WhatsApp del consultorio</FormLabel>
                     <div className="flex gap-2">
                       <FormControl>
-                        <Input
-                          placeholder="+1 (809) 000-0000"
-                          disabled={state !== "entering-number"}
-                          inputMode="tel"
-                          value={field.value ? formatPhone(field.value) : ""}
-                          onChange={(e) => field.onChange(parsePhone(e.target.value))}
+                        <PhoneInput
+                          value={field.value}
+                          onChange={field.onChange}
                           onBlur={field.onBlur}
+                          disabled={state !== "entering-number"}
                         />
                       </FormControl>
                       {state === "entering-number" && (
