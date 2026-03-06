@@ -2,9 +2,17 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { DevPanel } from "@/components/dev-panel";
 import { Loader2 } from "lucide-react";
 
 type LoginState = "idle" | "loading" | "error-unauthorized" | "error-network";
+
+const DEV_STATES = [
+  { label: "Idle", value: "idle" as LoginState },
+  { label: "Cargando", value: "loading" as LoginState },
+  { label: "Error — no autorizado", value: "error-unauthorized" as LoginState },
+  { label: "Error — red", value: "error-network" as LoginState },
+];
 
 function GoogleIcon() {
   return (
@@ -34,11 +42,7 @@ export default function LoginPage() {
 
   function handleLogin() {
     setState("loading");
-
-    // Prototype: simulate auth flow
-    setTimeout(() => {
-      setState("idle");
-    }, 2000);
+    setTimeout(() => setState("idle"), 2000);
   }
 
   const errorMessage =
@@ -91,10 +95,11 @@ export default function LoginPage() {
 
       </div>
 
-      {/* Footer */}
       <p className="absolute bottom-8 text-xs text-zinc-400">
         Solo para consultorios autorizados
       </p>
+
+      <DevPanel states={DEV_STATES} current={state} onSelect={setState} />
     </div>
   );
 }
