@@ -19,7 +19,7 @@ export function DevPanel<T>({ states, current, onSelect }: DevPanelProps<T>) {
   if (process.env.NODE_ENV === "production") return null;
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 flex flex-col items-start gap-1">
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-1">
       <button
         onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-1.5 rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-100 shadow-lg"
