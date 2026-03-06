@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { DevPanel } from "@/components/dev-panel";
+import { ServiceModal, type ServiceData } from "@/components/service-modal";
 import { Pencil, Plus } from "lucide-react";
 
 type PageState = "empty" | "with-services";
@@ -14,27 +15,36 @@ const DEV_STATES = [
   { label: "Con servicios", value: "with-services" as PageState },
 ];
 
-type Service = {
-  id: number;
-  name: string;
-  price: number;
-  duration: number;
-};
-
-const MOCK_SERVICES: Service[] = [
+const INITIAL_SERVICES: ServiceData[] = [
   { id: 1, name: "Consulta general", price: 1500, duration: 30 },
   { id: 2, name: "Consulta de seguimiento", price: 1000, duration: 20 },
 ];
 
 export default function OnboardingServicesPage() {
   const router = useRouter();
-  const [state, setState] = useState<PageState>("with-services");
-  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
+  const [pageState, setPageState] = useState<PageState>("with-services");
+  const [services, setServices] = useState<ServiceData[]>(INITIAL_SERVICES);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingService, setEditingService] = useState<ServiceData | undefined>();
 
-  const displayServices = state === "empty" ? [] : services;
+  const displayServices = pageState === "empty" ? [] : services;
 
-  function handleContinue() {
-    router.push("/onboarding/schedule");
+  function handleAdd() {
+    setEditingService(undefined);
+    setModalOpen(true);
+  }
+
+  function handleEdit(service: ServiceData) {
+    setEditingService(service);
+    setModalOpen(true);
+  }
+
+  function handleSave(data: ServiceData) {
+    if (data.id) {
+      setServices((prev) => prev.map((s) => (s.id === data.id ? { ...data } : s)));
+    } else {
+      setServices((prev) => [...prev, { ...data, id: Date.now() }]);
+    }
   }
 
   return (
@@ -65,7 +75,10 @@ export default function OnboardingServicesPage() {
                     RD${service.price.toLocaleString()} · {service.duration} min
                   </p>
                 </div>
-                <button className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600">
+                <button
+                  onClick={() => handleEdit(service)}
+                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                >
                   <Pencil className="h-4 w-4" />
                 </button>
               </div>
@@ -73,7 +86,7 @@ export default function OnboardingServicesPage() {
           )}
 
           <button
-            onClick={() => setServices((prev) => [...prev, { id: Date.now(), name: "Nuevo servicio", price: 800, duration: 30 }])}
+            onClick={handleAdd}
             className="flex items-center gap-2 rounded-xl border border-dashed border-zinc-200 px-4 py-3 text-sm text-zinc-500 transition-colors hover:border-zinc-300 hover:text-zinc-700"
           >
             <Plus className="h-4 w-4" />
@@ -82,7 +95,7 @@ export default function OnboardingServicesPage() {
         </div>
 
         <Button
-          onClick={handleContinue}
+          onClick={() => router.push("/onboarding/schedule")}
           disabled={displayServices.length === 0}
           className="w-full"
         >
@@ -91,7 +104,14 @@ export default function OnboardingServicesPage() {
 
       </div>
 
-      <DevPanel states={DEV_STATES} current={state} onSelect={setState} />
+      <ServiceModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSave}
+        initial={editingService}
+      />
+
+      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }
