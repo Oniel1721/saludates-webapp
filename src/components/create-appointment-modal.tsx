@@ -11,7 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
-import { MOCK_PATIENTS, MOCK_SERVICES, type Appointment } from "@/lib/mock";
+import { useAuth } from "@/lib/auth-context";
+import { useServices } from "@/lib/hooks/use-services";
+import { usePatients } from "@/lib/hooks/use-patients";
+import { useCreateAppointment } from "@/lib/hooks/use-appointments";
 import { drPhoneSchema } from "@/lib/phone";
 
 const schema = z.object({
@@ -29,14 +32,21 @@ type AvailabilityStatus = "idle" | "checking" | "available" | "unavailable" | "o
 type CreateAppointmentModalProps = {
   open: boolean;
   onClose: () => void;
-  onSave: (appointment: Omit<Appointment, "id">) => void;
+  onSave: () => void;
   defaultDate?: string;
 };
 
 export function CreateAppointmentModal({ open, onClose, onSave, defaultDate }: CreateAppointmentModalProps) {
+  const { clinicId } = useAuth();
+  const { data: services = [] } = useServices(clinicId ?? "");
+  const { data: patients = [] } = usePatients(clinicId ?? "");
+  const createAppointment = useCreateAppointment(clinicId ?? "");
+
   const [patientQuery, setPatientQuery] = useState("");
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
   const [availability, setAvailability] = useState<AvailabilityStatus>("idle");
+
+  const activeServices = services.filter((s) => !s.archivedAt);
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(schema),
@@ -62,26 +72,26 @@ export function CreateAppointmentModal({ open, onClose, onSave, defaultDate }: C
   const watchedTime = form.watch("startTime");
   const watchedService = form.watch("serviceId");
 
-  // Simulate availability check when date + time change
+  // Simulate availability check (TODO: use real API when backend slot check is implemented)
   useEffect(() => {
     if (!watchedDate || !watchedTime) { setAvailability("idle"); return; }
     setAvailability("checking");
     const timer = setTimeout(() => {
       const hour = parseInt(watchedTime.split(":")[0]);
       if (hour < 8 || hour >= 17) { setAvailability("outside-hours"); return; }
-      setAvailability(hour === 9 ? "unavailable" : "available");
-    }, 600);
+      setAvailability("available");
+    }, 400);
     return () => clearTimeout(timer);
   }, [watchedDate, watchedTime]);
 
   // Auto-fill price when service changes
   useEffect(() => {
     if (!watchedService) return;
-    const service = MOCK_SERVICES.find((s) => String(s.id) === watchedService);
+    const service = activeServices.find((s) => s.id === watchedService);
     if (service) form.setValue("price", String(service.price));
-  }, [watchedService]);
+  }, [watchedService, activeServices]);
 
-  const filteredPatients = MOCK_PATIENTS.filter(
+  const filteredPatients = patients.filter(
     (p) =>
       p.name.toLowerCase().includes(patientQuery.toLowerCase()) ||
       p.phone.includes(patientQuery)
@@ -95,34 +105,28 @@ export function CreateAppointmentModal({ open, onClose, onSave, defaultDate }: C
   }
 
   function onSubmit(values: FormValues) {
-    const service = MOCK_SERVICES.find((s) => String(s.id) === values.serviceId)!;
-    const [h, m] = values.startTime.split(":").map(Number);
-    const endMinutes = h * 60 + m + service.durationMinutes;
-    const endHour = Math.floor(endMinutes / 60).toString().padStart(2, "0");
-    const endMin = (endMinutes % 60).toString().padStart(2, "0");
-
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        onSave({
-          patientName: values.patientName,
-          patientPhone: values.patientPhone,
-          service: service.name,
-          serviceId: service.id,
-          date: values.date,
-          startTime: values.startTime,
-          endTime: `${endHour}:${endMin}`,
-          durationMinutes: service.durationMinutes,
-          price: Number(values.price),
-          status: "pending",
-          createdBy: "secretary",
-        });
-        onClose();
-        resolve();
-      }, 800);
-    });
+    const startsAt = new Date(`${values.date}T${values.startTime}:00`).toISOString();
+    return createAppointment.mutateAsync(
+      {
+        patientName: values.patientName,
+        patientPhone: values.patientPhone,
+        serviceId: values.serviceId,
+        startsAt,
+        price: Number(values.price),
+      },
+      {
+        onSuccess: () => {
+          onSave();
+          onClose();
+        },
+        onError: () => {
+          alert("No pudimos crear la cita. Verifica el horario e intenta de nuevo.");
+        },
+      }
+    );
   }
 
-  const isSubmitting = form.formState.isSubmitting;
+  const isSubmitting = form.formState.isSubmitting || createAppointment.isPending;
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -209,8 +213,8 @@ export function CreateAppointmentModal({ open, onClose, onSave, defaultDate }: C
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {MOCK_SERVICES.map((s) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
+                      {activeServices.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
                           {s.name} · {s.durationMinutes} min
                         </SelectItem>
                       ))}
@@ -243,9 +247,7 @@ export function CreateAppointmentModal({ open, onClose, onSave, defaultDate }: C
                   <FormItem>
                     <FormLabel>Hora</FormLabel>
                     <FormControl>
-                      <div className="relative">
-                        <Input type="time" {...field} />
-                      </div>
+                      <Input type="time" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

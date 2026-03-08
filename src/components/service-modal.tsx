@@ -38,7 +38,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export type ServiceData = {
-  id?: number;
+  id?: string;
   name: string;
   price: number;
   duration: number;

@@ -1,73 +1,91 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { DevPanel } from "@/components/dev-panel";
 import { Loader2, CheckCircle2 } from "lucide-react";
-
-type SaveState = "idle" | "saving" | "saved" | "error";
-type PageState = "idle" | "saving" | "saved" | "error" | "time-error";
-
-const DEV_STATES = [
-  { label: "Editable",       value: "idle" as PageState },
-  { label: "Error horario",  value: "time-error" as PageState },
-  { label: "Guardando",      value: "saving" as PageState },
-  { label: "Guardado",       value: "saved" as PageState },
-  { label: "Error",          value: "error" as PageState },
-];
+import { useAuth } from "@/lib/auth-context";
+import { useSchedule, useUpsertSchedule } from "@/lib/hooks/use-availability";
 
 type DaySchedule = {
+  dayOfWeek: number;
   label: string;
   active: boolean;
   open: string;
   close: string;
 };
 
-const DEFAULT_SCHEDULE: DaySchedule[] = [
-  { label: "Lunes",     active: true,  open: "08:00", close: "17:00" },
-  { label: "Martes",    active: true,  open: "08:00", close: "17:00" },
-  { label: "Miércoles", active: true,  open: "08:00", close: "17:00" },
-  { label: "Jueves",    active: true,  open: "08:00", close: "17:00" },
-  { label: "Viernes",   active: true,  open: "08:00", close: "17:00" },
-  { label: "Sábado",    active: false, open: "08:00", close: "17:00" },
-  { label: "Domingo",   active: false, open: "08:00", close: "17:00" },
-];
+const DAY_LABELS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+const DEFAULT_SCHEDULE: DaySchedule[] = DAY_LABELS.map((label, i) => ({
+  dayOfWeek: i,
+  label,
+  active: i >= 1 && i <= 5,
+  open: "08:00",
+  close: "17:00",
+}));
 
 export default function SettingsAvailabilityPage() {
-  const [pageState, setPageState] = useState<PageState>("idle");
-  const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
+  const { clinicId } = useAuth();
+  const { data: schedules = [], isLoading } = useSchedule(clinicId ?? "");
+  const upsertSchedule = useUpsertSchedule(clinicId ?? "");
 
-  const hasActiveDay = schedule.some((d) => d.active);
+  const [days, setDays] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
+  const [timeError, setTimeError] = useState(false);
+
+  useEffect(() => {
+    if (schedules.length > 0) {
+      setDays(
+        DAY_LABELS.map((label, i) => {
+          const s = schedules.find((sc) => sc.dayOfWeek === i);
+          return {
+            dayOfWeek: i,
+            label,
+            active: s ? s.isActive : i >= 1 && i <= 5,
+            open: s ? s.startTime : "08:00",
+            close: s ? s.endTime : "17:00",
+          };
+        })
+      );
+    }
+  }, [schedules]);
+
+  const hasActiveDay = days.some((d) => d.active);
 
   function updateDay(index: number, changes: Partial<DaySchedule>) {
-    setSchedule((prev) => prev.map((d, i) => (i === index ? { ...d, ...changes } : d)));
-  }
-
-  function hasTimeError(day: DaySchedule) {
-    return pageState === "time-error" && day.active && day.open >= day.close;
+    setDays((prev) => prev.map((d, i) => (i === index ? { ...d, ...changes } : d)));
+    setTimeError(false);
   }
 
   function handleSave() {
-    const hasError = schedule.some((d) => d.active && d.open >= d.close);
+    const hasError = days.some((d) => d.active && d.open >= d.close);
     if (hasError) {
-      setPageState("time-error");
+      setTimeError(true);
       return;
     }
-    setPageState("saving");
-    setTimeout(() => setPageState("saved"), 1000);
+    setTimeError(false);
+    upsertSchedule.mutate({
+      schedule: days.map((d) => ({
+        dayOfWeek: d.dayOfWeek,
+        isActive: d.active,
+        startTime: d.open,
+        endTime: d.close,
+      })),
+    });
   }
 
-  const saveState: SaveState =
-    pageState === "saving" ? "saving"
-    : pageState === "saved" ? "saved"
-    : pageState === "error" ? "error"
-    : "idle";
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6 px-4 py-6">
       <div className="flex flex-col gap-1">
-        {schedule.map((day, index) => (
+        {days.map((day, index) => (
           <div key={day.label} className="flex flex-col gap-1">
             <div className="flex items-center gap-3 py-2.5">
               <Switch
@@ -95,7 +113,7 @@ export default function SettingsAvailabilityPage() {
                 <span className="text-xs text-zinc-400">Cerrado</span>
               )}
             </div>
-            {hasTimeError(day) && (
+            {timeError && day.active && day.open >= day.close && (
               <p className="pl-10 text-xs text-red-500">
                 La hora de cierre debe ser posterior a la de apertura.
               </p>
@@ -110,14 +128,14 @@ export default function SettingsAvailabilityPage() {
         </p>
       )}
 
-      {saveState === "saved" && (
+      {upsertSchedule.isSuccess && (
         <div className="flex items-center gap-2 text-sm text-emerald-600">
           <CheckCircle2 className="h-4 w-4" />
           Horario actualizado.
         </div>
       )}
 
-      {saveState === "error" && (
+      {upsertSchedule.isError && (
         <p className="text-sm text-red-500">
           No pudimos guardar los cambios. Intenta de nuevo.
         </p>
@@ -125,10 +143,10 @@ export default function SettingsAvailabilityPage() {
 
       <Button
         onClick={handleSave}
-        disabled={!hasActiveDay || saveState === "saving"}
+        disabled={!hasActiveDay || upsertSchedule.isPending}
         className="w-full"
       >
-        {saveState === "saving" ? (
+        {upsertSchedule.isPending ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" />
             Guardando...
@@ -137,8 +155,6 @@ export default function SettingsAvailabilityPage() {
           "Guardar cambios"
         )}
       </Button>
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

@@ -6,37 +6,31 @@ import { Plus } from "lucide-react";
 import { AgendaHeader } from "@/components/agenda-header";
 import { AppointmentDetailModal } from "@/components/appointment-detail-modal";
 import { CreateAppointmentModal } from "@/components/create-appointment-modal";
-import { DevPanel } from "@/components/dev-panel";
-import {
-  MOCK_APPOINTMENTS,
-  MOCK_SCHEDULE,
-  STATUS_COLORS,
-  STATUS_DOT,
-  getMondayOf,
-  addDays,
-  toDateString,
-  type Appointment,
-} from "@/lib/mock";
+import { useAuth } from "@/lib/auth-context";
+import { useAppointments, useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
+import { useSchedule } from "@/lib/hooks/use-availability";
+import { STATUS_COLORS, STATUS_DOT } from "@/lib/mock";
+import { getMondayOf, addDays, toDateString, localDate, localTime } from "@/lib/date-helpers";
+import type { Appointment, Schedule } from "@/lib/api";
 
 const HOUR_HEIGHT = 48;
-
-const HOURS = Array.from(
-  { length: MOCK_SCHEDULE.endHour - MOCK_SCHEDULE.startHour },
-  (_, i) => MOCK_SCHEDULE.startHour + i
-);
-
 const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-type PageState = "with-appointments" | "empty";
+function deriveScheduleConfig(schedules: Schedule[]) {
+  const active = schedules.filter((s) => s.isActive);
+  if (active.length === 0) return { startHour: 8, endHour: 17, workDays: [] as number[] };
+  const startHour = Math.min(...active.map((s) => parseInt(s.startTime)));
+  const endHour = Math.max(...active.map((s) => parseInt(s.endTime)));
+  return { startHour, endHour, workDays: active.map((s) => s.dayOfWeek) };
+}
 
-const DEV_STATES = [
-  { label: "Con citas",  value: "with-appointments" as PageState },
-  { label: "Sin citas",  value: "empty" as PageState },
-];
+function getDurationMinutes(startsAt: string, endsAt: string) {
+  return Math.round((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000);
+}
 
-function getTop(time: string): number {
+function getTop(time: string, startHour: number): number {
   const [h, m] = time.split(":").map(Number);
-  return (h - MOCK_SCHEDULE.startHour) * HOUR_HEIGHT + (m * HOUR_HEIGHT) / 60;
+  return (h - startHour) * HOUR_HEIGHT + (m * HOUR_HEIGHT) / 60;
 }
 
 function getHeight(minutes: number): number {
@@ -45,30 +39,35 @@ function getHeight(minutes: number): number {
 
 export default function AgendaWeekPage() {
   const router = useRouter();
+  const { clinicId } = useAuth();
   const [date, setDate] = useState(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [pageState, setPageState] = useState<PageState>("with-appointments");
+
+  const { data: appointments = [] } = useAppointments(clinicId ?? "");
+  const { data: schedules = [] } = useSchedule(clinicId ?? "");
+  const cancelMutation = useCancelAppointment(clinicId ?? "");
+  const markResultMutation = useMarkResult(clinicId ?? "");
+
+  const { startHour, endHour, workDays } = deriveScheduleConfig(schedules);
+  const HOURS = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
+  const totalHeight = HOURS.length * HOUR_HEIGHT;
 
   const monday = getMondayOf(date);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const today = toDateString(new Date());
 
   function getAppts(dayStr: string) {
-    if (pageState === "empty") return [];
-    return appointments.filter((a) => a.date === dayStr);
+    return appointments.filter((a) => localDate(a.startsAt) === dayStr);
   }
 
-  function handleUpdate(id: number, changes: Partial<Appointment>) {
-    setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, ...changes } : a)));
+  function handleCancel(id: string, reason?: string) {
+    cancelMutation.mutate({ id, body: reason ? { reason } : undefined });
   }
 
-  function handleCreate(appt: Omit<Appointment, "id">) {
-    setAppointments((prev) => [...prev, { ...appt, id: Date.now() }]);
+  function handleMarkResult(id: string, result: "COMPLETED" | "NO_SHOW") {
+    markResultMutation.mutate({ id, body: { status: result } });
   }
-
-  const totalHeight = HOURS.length * HOUR_HEIGHT;
 
   return (
     <div className="flex flex-col bg-white">
@@ -83,7 +82,7 @@ export default function AgendaWeekPage() {
               <div
                 key={h}
                 className="absolute left-0 right-0"
-                style={{ top: (h - MOCK_SCHEDULE.startHour) * HOUR_HEIGHT }}
+                style={{ top: (h - startHour) * HOUR_HEIGHT }}
               >
                 <span className="block pr-1 pt-0.5 text-right text-[10px] text-zinc-400 leading-none">
                   {h}:00
@@ -97,14 +96,14 @@ export default function AgendaWeekPage() {
         {weekDays.map((day, i) => {
           const dayStr = toDateString(day);
           const isToday = dayStr === today;
-          const isClosed = !MOCK_SCHEDULE.workDays.includes(day.getDay());
+          const isClosed = workDays.length > 0 && !workDays.includes(day.getDay());
           const appts = getAppts(dayStr);
 
           return (
             <div key={dayStr} className="flex-1 min-w-0 border-l border-zinc-100">
               {/* Day header */}
               <button
-                onClick={() => router.push("/agenda")}
+                onClick={() => { setDate(day); router.push("/agenda"); }}
                 className={`flex h-10 w-full flex-col items-center justify-center border-b border-zinc-100 text-center hover:bg-zinc-50 ${
                   isToday ? "bg-zinc-900" : ""
                 }`}
@@ -126,7 +125,7 @@ export default function AgendaWeekPage() {
                   <div
                     key={h}
                     className="absolute left-0 right-0 border-t border-zinc-100"
-                    style={{ top: (h - MOCK_SCHEDULE.startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+                    style={{ top: (h - startHour) * HOUR_HEIGHT, height: HOUR_HEIGHT }}
                   />
                 ))}
 
@@ -136,24 +135,27 @@ export default function AgendaWeekPage() {
                   </div>
                 )}
 
-                {appts.map((appt) => (
-                  <button
-                    key={appt.id}
-                    onClick={() => setSelected(appt)}
-                    className={`absolute inset-x-0.5 rounded-sm border px-1 text-left transition-opacity hover:opacity-75 ${STATUS_COLORS[appt.status]}`}
-                    style={{
-                      top: getTop(appt.startTime),
-                      height: getHeight(appt.durationMinutes),
-                    }}
-                  >
-                    <div className="flex items-center gap-0.5 overflow-hidden">
-                      <span className={`h-1 w-1 shrink-0 rounded-full ${STATUS_DOT[appt.status]}`} />
-                      <span className="truncate text-[10px] font-medium leading-tight">
-                        {appt.patientName.split(" ")[0]}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+                {appts.map((appt) => {
+                  const duration = getDurationMinutes(appt.startsAt, appt.endsAt);
+                  return (
+                    <button
+                      key={appt.id}
+                      onClick={() => setSelected(appt)}
+                      className={`absolute inset-x-0.5 rounded-sm border px-1 text-left transition-opacity hover:opacity-75 ${STATUS_COLORS[appt.status]}`}
+                      style={{
+                        top: getTop(localTime(appt.startsAt), startHour),
+                        height: getHeight(duration),
+                      }}
+                    >
+                      <div className="flex items-center gap-0.5 overflow-hidden">
+                        <span className={`h-1 w-1 shrink-0 rounded-full ${STATUS_DOT[appt.status]}`} />
+                        <span className="truncate text-[10px] font-medium leading-tight">
+                          {appt.patient.name.split(" ")[0]}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           );
@@ -173,16 +175,15 @@ export default function AgendaWeekPage() {
         open={!!selected}
         appointment={selected}
         onClose={() => setSelected(null)}
-        onUpdate={handleUpdate}
+        onCancel={handleCancel}
+        onMarkResult={handleMarkResult}
       />
 
       <CreateAppointmentModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onSave={handleCreate}
+        onSave={() => setCreateOpen(false)}
       />
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

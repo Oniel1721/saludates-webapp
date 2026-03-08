@@ -3,35 +3,39 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink, MessageCircle } from "lucide-react";
+import { ChevronLeft, ExternalLink, MessageCircle, Loader2 } from "lucide-react";
 import { AppointmentDetailModal } from "@/components/appointment-detail-modal";
-import { DevPanel } from "@/components/dev-panel";
-import {
-  MOCK_PATIENTS,
-  MOCK_APPOINTMENTS,
-  MOCK_CONVERSATIONS,
-  STATUS_LABEL,
-  STATUS_DOT,
-  type Appointment,
-} from "@/lib/mock";
+import { useAuth } from "@/lib/auth-context";
+import { usePatient } from "@/lib/hooks/use-patients";
+import { useAppointments, useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
+import { useConversations } from "@/lib/hooks/use-conversations";
+import { STATUS_LABEL, STATUS_DOT } from "@/lib/mock";
+import { localDate, localTime, timeAgo } from "@/lib/date-helpers";
 import { formatPhone } from "@/lib/phone";
-
-type PageState = "with-appointments" | "no-appointments";
-
-const DEV_STATES = [
-  { label: "Con historial",   value: "with-appointments" as PageState },
-  { label: "Sin historial",   value: "no-appointments" as PageState },
-];
+import type { Appointment } from "@/lib/api";
 
 export default function ContactProfilePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { clinicId } = useAuth();
 
-  const patient = MOCK_PATIENTS.find((p) => p.id === Number(id));
+  const { data: patient, isLoading: patientLoading } = usePatient(clinicId ?? "", id);
+  const { data: appointments = [], isLoading: apptLoading } = useAppointments(clinicId ?? "");
+  const { data: conversations = [] } = useConversations(clinicId ?? "");
+  const cancelMutation = useCancelAppointment(clinicId ?? "");
+  const markResultMutation = useMarkResult(clinicId ?? "");
 
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
   const [selected, setSelected] = useState<Appointment | null>(null);
-  const [pageState, setPageState] = useState<PageState>("with-appointments");
+
+  const isLoading = patientLoading || apptLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+      </div>
+    );
+  }
 
   if (!patient) {
     return (
@@ -41,24 +45,20 @@ export default function ContactProfilePage() {
     );
   }
 
-  const patientAppointments =
-    pageState === "no-appointments"
-      ? []
-      : appointments
-          .filter((a) => a.patientPhone === patient.phone)
-          .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const patientAppointments = appointments
+    .filter((a) => a.patientId === patient.id)
+    .sort((a, b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime());
 
-  const patientConversations = MOCK_CONVERSATIONS.filter(
-    (c) => c.patientId === patient.id
-  );
+  const patientConversations = conversations.filter((c) => c.patientId === patient.id);
 
-  function handleUpdate(apptId: number, changes: Partial<Appointment>) {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === apptId ? { ...a, ...changes } : a))
-    );
-    if (selected?.id === apptId) {
-      setSelected((prev) => (prev ? { ...prev, ...changes } : prev));
-    }
+  function handleCancel(apptId: string, reason?: string) {
+    cancelMutation.mutate({ id: apptId, body: reason ? { reason } : undefined });
+    setSelected(null);
+  }
+
+  function handleMarkResult(apptId: string, result: "COMPLETED" | "NO_SHOW") {
+    markResultMutation.mutate({ id: apptId, body: { status: result } });
+    setSelected(null);
   }
 
   return (
@@ -100,26 +100,29 @@ export default function ContactProfilePage() {
               Conversaciones
             </p>
             <div className="flex flex-col gap-2">
-              {patientConversations.map((conv) => (
-                <Link
-                  key={conv.id}
-                  href={`/conversations/${conv.id}`}
-                  className="flex items-center justify-between rounded-xl border border-zinc-100 px-4 py-3 hover:bg-zinc-50"
-                >
-                  <div className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-zinc-400" />
-                    <div>
-                      <p className="text-sm font-medium text-zinc-900">
-                        {conv.lastMessagePreview.length > 40
-                          ? conv.lastMessagePreview.slice(0, 40) + "…"
-                          : conv.lastMessagePreview}
-                      </p>
-                      <p className="text-xs text-zinc-400">{conv.lastMessageAgo}</p>
+              {patientConversations.map((conv) => {
+                const last = conv.messages[conv.messages.length - 1];
+                const preview = last?.text ?? "";
+                const ago = last ? timeAgo(last.sentAt) : "";
+                return (
+                  <Link
+                    key={conv.id}
+                    href={`/conversations/${conv.id}`}
+                    className="flex items-center justify-between rounded-xl border border-zinc-100 px-4 py-3 hover:bg-zinc-50"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4 text-zinc-400" />
+                      <div>
+                        <p className="text-sm font-medium text-zinc-900">
+                          {preview.length > 40 ? preview.slice(0, 40) + "…" : preview}
+                        </p>
+                        <p className="text-xs text-zinc-400">{ago}</p>
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-xs font-medium text-zinc-500">Ver →</span>
-                </Link>
-              ))}
+                    <span className="text-xs font-medium text-zinc-500">Ver →</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
@@ -141,9 +144,9 @@ export default function ContactProfilePage() {
                   className="flex items-center justify-between rounded-xl border border-zinc-100 px-4 py-3 text-left hover:bg-zinc-50"
                 >
                   <div>
-                    <p className="text-sm font-medium text-zinc-900">{appt.service}</p>
+                    <p className="text-sm font-medium text-zinc-900">{appt.service.name}</p>
                     <p className="text-xs text-zinc-400">
-                      {appt.date} · {appt.startTime}
+                      {localDate(appt.startsAt)} · {localTime(appt.startsAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -161,10 +164,9 @@ export default function ContactProfilePage() {
         open={!!selected}
         appointment={selected}
         onClose={() => setSelected(null)}
-        onUpdate={handleUpdate}
+        onCancel={handleCancel}
+        onMarkResult={handleMarkResult}
       />
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

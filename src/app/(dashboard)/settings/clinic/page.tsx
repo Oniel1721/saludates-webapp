@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { z } from "zod";
@@ -14,8 +14,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { DevPanel } from "@/components/dev-panel";
 import { Loader2, CheckCircle2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useClinic, useUpdateClinic } from "@/lib/hooks/use-clinic";
 
 const schema = z.object({
   name: z.string().min(1, "Este campo es requerido."),
@@ -23,29 +24,25 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-type PageState = "idle" | "saving" | "saved" | "error";
-
-const DEV_STATES = [
-  { label: "Editable",   value: "idle" as PageState },
-  { label: "Guardando",  value: "saving" as PageState },
-  { label: "Guardado",   value: "saved" as PageState },
-  { label: "Error",      value: "error" as PageState },
-];
 
 export default function SettingsClinicPage() {
-  const [pageState, setPageState] = useState<PageState>("idle");
+  const { clinicId } = useAuth();
+  const { data: clinic } = useClinic(clinicId ?? "");
+  const updateClinic = useUpdateClinic(clinicId ?? "");
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(schema),
-    defaultValues: {
-      name: "Consultorio Dra. Martínez",
-      address: "Calle El Sol #45, Santiago",
-    },
+    defaultValues: { name: "", address: "" },
   });
 
-  function onSubmit() {
-    setPageState("saving");
-    setTimeout(() => setPageState("saved"), 1000);
+  useEffect(() => {
+    if (clinic) {
+      form.reset({ name: clinic.name, address: clinic.address });
+    }
+  }, [clinic, form]);
+
+  function onSubmit(values: FormValues) {
+    updateClinic.mutate(values);
   }
 
   return (
@@ -80,14 +77,14 @@ export default function SettingsClinicPage() {
             )}
           />
 
-          {pageState === "saved" && (
+          {updateClinic.isSuccess && (
             <div className="flex items-center gap-2 text-sm text-emerald-600">
               <CheckCircle2 className="h-4 w-4" />
               Cambios guardados.
             </div>
           )}
 
-          {pageState === "error" && (
+          {updateClinic.isError && (
             <p className="text-sm text-red-500">
               No pudimos guardar los cambios. Intenta de nuevo.
             </p>
@@ -95,11 +92,10 @@ export default function SettingsClinicPage() {
 
           <Button
             type="submit"
-            disabled={pageState === "saving"}
+            disabled={updateClinic.isPending}
             className="w-full"
-            onClick={() => setPageState("idle")}
           >
-            {pageState === "saving" ? (
+            {updateClinic.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Guardando...
@@ -110,8 +106,6 @@ export default function SettingsClinicPage() {
           </Button>
         </form>
       </Form>
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

@@ -1,32 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Archive } from "lucide-react";
 import { ServiceModal, type ServiceData } from "@/components/service-modal";
-import { DevPanel } from "@/components/dev-panel";
-import { MOCK_SERVICES } from "@/lib/mock";
-
-type PageState = "with-services" | "empty";
-
-const DEV_STATES = [
-  { label: "Con servicios",  value: "with-services" as PageState },
-  { label: "Sin servicios",  value: "empty" as PageState },
-];
-
-const INITIAL_SERVICES: ServiceData[] = MOCK_SERVICES.map((s) => ({
-  id: s.id,
-  name: s.name,
-  price: s.price,
-  duration: s.durationMinutes,
-}));
+import { Plus, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useServices, useCreateService, useUpdateService, useArchiveService } from "@/lib/hooks/use-services";
 
 export default function SettingsServicesPage() {
-  const [pageState, setPageState] = useState<PageState>("with-services");
-  const [services, setServices] = useState<ServiceData[]>(INITIAL_SERVICES);
+  const { clinicId } = useAuth();
+  const { data: services = [], isLoading } = useServices(clinicId ?? "");
+  const createService = useCreateService(clinicId ?? "");
+  const updateService = useUpdateService(clinicId ?? "");
+  const archiveService = useArchiveService(clinicId ?? "");
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<ServiceData | undefined>();
 
-  const displayServices = pageState === "empty" ? [] : services;
+  const activeServices = services.filter((s) => !s.archivedAt);
 
   function handleAdd() {
     setEditing(undefined);
@@ -38,27 +29,36 @@ export default function SettingsServicesPage() {
     setModalOpen(true);
   }
 
-  function handleDelete(id: number) {
-    setServices((prev) => prev.filter((s) => s.id !== id));
-  }
-
   function handleSave(data: ServiceData) {
     if (data.id) {
-      setServices((prev) => prev.map((s) => (s.id === data.id ? data : s)));
+      updateService.mutate({
+        id: data.id,
+        body: { name: data.name, price: data.price, durationMinutes: data.duration, prerequisites: data.prerequisites },
+      });
     } else {
-      setServices((prev) => [...prev, { ...data, id: Date.now() }]);
+      createService.mutate({
+        name: data.name,
+        price: data.price,
+        durationMinutes: data.duration,
+        prerequisites: data.prerequisites,
+      });
     }
+    setModalOpen(false);
   }
 
   return (
     <div className="flex flex-col gap-4 px-4 py-6">
-      {displayServices.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+        </div>
+      ) : activeServices.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-10 text-center">
           <p className="text-sm text-zinc-400">No hay servicios configurados.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {displayServices.map((service) => (
+          {activeServices.map((service) => (
             <div
               key={service.id}
               className="flex items-center justify-between rounded-xl border border-zinc-100 px-4 py-3"
@@ -66,21 +66,29 @@ export default function SettingsServicesPage() {
               <div className="flex flex-col gap-0.5">
                 <p className="text-sm font-medium text-zinc-900">{service.name}</p>
                 <p className="text-xs text-zinc-400">
-                  RD${service.price.toLocaleString()} · {service.duration} min
+                  RD${service.price.toLocaleString()} · {service.durationMinutes} min
                 </p>
               </div>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => handleEdit(service)}
+                  onClick={() =>
+                    handleEdit({
+                      id: service.id,
+                      name: service.name,
+                      price: service.price,
+                      duration: service.durationMinutes,
+                      prerequisites: service.prerequisites ?? undefined,
+                    })
+                  }
                   className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => handleDelete(service.id!)}
+                  onClick={() => archiveService.mutate(service.id)}
                   className="rounded-lg p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-500"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Archive className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -103,8 +111,6 @@ export default function SettingsServicesPage() {
         initial={editing}
         showPriceWarning={true}
       />
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

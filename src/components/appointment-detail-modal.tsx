@@ -5,20 +5,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { CancelAppointmentModal } from "@/components/cancel-appointment-modal";
 import { MarkResultModal } from "@/components/mark-result-modal";
-import { Loader2, ExternalLink } from "lucide-react";
-import {
-  type Appointment,
-  type AppointmentStatus,
-  STATUS_LABEL,
-  STATUS_DOT,
-} from "@/lib/mock";
+import { ExternalLink } from "lucide-react";
+import type { Appointment } from "@/lib/api";
+import { STATUS_LABEL, STATUS_DOT } from "@/lib/mock";
+import { localDate, localTime } from "@/lib/date-helpers";
 import { formatPhone as fmtPhone } from "@/lib/phone";
 
 type AppointmentDetailModalProps = {
   open: boolean;
   appointment: Appointment | null;
   onClose: () => void;
-  onUpdate: (id: number, changes: Partial<Appointment>) => void;
+  onCancel: (id: string, reason?: string) => void;
+  onMarkResult: (id: string, result: "COMPLETED" | "NO_SHOW") => void;
 };
 
 type SubModal = "cancel" | "mark-result" | null;
@@ -27,34 +25,33 @@ export function AppointmentDetailModal({
   open,
   appointment,
   onClose,
-  onUpdate,
+  onCancel,
+  onMarkResult,
 }: AppointmentDetailModalProps) {
   const [subModal, setSubModal] = useState<SubModal>(null);
-  const [loading] = useState(false);
 
   if (!appointment) return null;
 
   const now = new Date();
-  const apptDate = new Date(`${appointment.date}T${appointment.startTime}`);
+  const apptDate = new Date(appointment.startsAt);
   const isPast = apptDate < now;
-
-  const status = appointment.status;
   const isFuture = !isPast;
 
-  function handleCancel(id: number, reason?: string) {
-    onUpdate(id, {
-      status: "cancelled",
-      cancelReason: reason,
-      cancelledAt: new Date().toISOString(),
-    });
-  }
-
-  function handleMarkResult(id: number, result: "completed" | "no-show") {
-    onUpdate(id, { status: result });
-  }
-
+  const status = appointment.status;
   const dotColor = STATUS_DOT[status];
   const label = STATUS_LABEL[status];
+
+  function handleCancel(id: string, reason?: string) {
+    onCancel(id, reason);
+    setSubModal(null);
+    onClose();
+  }
+
+  function handleMarkResult(id: string, result: "COMPLETED" | "NO_SHOW") {
+    onMarkResult(id, result);
+    setSubModal(null);
+    onClose();
+  }
 
   return (
     <>
@@ -64,91 +61,96 @@ export function AppointmentDetailModal({
             <DialogTitle>Detalle de cita</DialogTitle>
           </DialogHeader>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+          <div className="flex flex-col gap-5 pt-1">
+            {/* Status badge */}
+            <div className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${dotColor}`} />
+              <span className="text-sm font-medium text-zinc-700">{label}</span>
             </div>
-          ) : (
-            <div className="flex flex-col gap-5 pt-1">
-              {/* Status badge */}
-              <div className="flex items-center gap-2">
-                <span className={`h-2 w-2 rounded-full ${dotColor}`} />
-                <span className="text-sm font-medium text-zinc-700">{label}</span>
-              </div>
 
-              {/* Appointment data */}
-              <div className="flex flex-col gap-2 text-sm">
-                <Row label="Paciente" value={appointment.patientName} />
-                <Row
-                  label="WhatsApp"
-                  value={
-                    <a
-                      href={`https://wa.me/${appointment.patientPhone}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-emerald-600 hover:underline"
-                    >
-                      {fmtPhone(appointment.patientPhone)}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  }
-                />
-                <Row label="Servicio" value={appointment.service} />
-                <Row label="Fecha" value={`${appointment.date} · ${appointment.startTime} – ${appointment.endTime}`} />
-                <Row label="Precio" value={`RD$${appointment.price.toLocaleString()}`} />
-                <Row label="Creada por" value={appointment.createdBy === "bot" ? "Paciente (bot)" : "Secretaria"} />
-                {status === "cancelled" && appointment.cancelReason && (
-                  <Row label="Razón" value={appointment.cancelReason} />
-                )}
-              </div>
-
-              {/* Info text for terminal states */}
-              {status === "completed" && (
-                <p className="text-xs text-blue-600">Esta cita fue completada.</p>
+            {/* Appointment data */}
+            <div className="flex flex-col gap-2 text-sm">
+              <Row label="Paciente" value={appointment.patient.name} />
+              <Row
+                label="WhatsApp"
+                value={
+                  <a
+                    href={`https://wa.me/${appointment.patient.phone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-emerald-600 hover:underline"
+                  >
+                    {fmtPhone(appointment.patient.phone)}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                }
+              />
+              <Row label="Servicio" value={appointment.service.name} />
+              <Row
+                label="Fecha"
+                value={`${localDate(appointment.startsAt)} · ${localTime(appointment.startsAt)} – ${localTime(appointment.endsAt)}`}
+              />
+              <Row label="Precio" value={`RD$${appointment.price.toLocaleString()}`} />
+              <Row
+                label="Creada por"
+                value={appointment.createdBy === "BOT" ? "Paciente (bot)" : "Secretaria"}
+              />
+              {status === "CANCELLED" && appointment.cancelReason && (
+                <Row label="Razón" value={appointment.cancelReason} />
               )}
-              {status === "no-show" && (
-                <p className="text-xs text-red-500">El paciente no se presentó.</p>
-              )}
-              {status === "cancelled" && (
-                <p className="text-xs text-zinc-400">Cita cancelada.</p>
-              )}
+            </div>
 
-              {/* Actions */}
-              <div className="flex flex-col gap-2">
-                {/* Future pending/confirmed */}
-                {isFuture && (status === "pending" || status === "confirmed") && (
-                  <>
-                    <Button variant="outline" className="w-full">Editar cita</Button>
-                    <Button variant="outline" onClick={() => setSubModal("cancel")} className="w-full text-red-500 hover:text-red-600">
-                      Cancelar cita
-                    </Button>
-                  </>
-                )}
+            {/* Info text for terminal states */}
+            {status === "COMPLETED" && (
+              <p className="text-xs text-blue-600">Esta cita fue completada.</p>
+            )}
+            {status === "NO_SHOW" && (
+              <p className="text-xs text-red-500">El paciente no se presentó.</p>
+            )}
+            {status === "CANCELLED" && (
+              <p className="text-xs text-zinc-400">Cita cancelada.</p>
+            )}
 
-                {/* Past pending/confirmed */}
-                {isPast && (status === "pending" || status === "confirmed") && (
-                  <>
-                    <Button onClick={() => setSubModal("mark-result")} className="w-full">
-                      Marcar como Completada
-                    </Button>
-                    <Button variant="outline" onClick={() => setSubModal("mark-result")} className="w-full">
-                      Marcar como No asistió
-                    </Button>
-                    <Button variant="outline" onClick={() => setSubModal("cancel")} className="w-full text-red-500 hover:text-red-600">
-                      Cancelar cita
-                    </Button>
-                  </>
-                )}
-
-                {/* Correction */}
-                {(status === "completed" || status === "no-show") && (
-                  <Button variant="outline" onClick={() => setSubModal("mark-result")} className="w-full">
-                    {status === "completed" ? "Corregir a No asistió" : "Corregir a Completada"}
+            {/* Actions */}
+            <div className="flex flex-col gap-2">
+              {isFuture && (status === "PENDING" || status === "CONFIRMED") && (
+                <>
+                  <Button variant="outline" className="w-full">Editar cita</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSubModal("cancel")}
+                    className="w-full text-red-500 hover:text-red-600"
+                  >
+                    Cancelar cita
                   </Button>
-                )}
-              </div>
+                </>
+              )}
+
+              {isPast && (status === "PENDING" || status === "CONFIRMED") && (
+                <>
+                  <Button onClick={() => setSubModal("mark-result")} className="w-full">
+                    Marcar como Completada
+                  </Button>
+                  <Button variant="outline" onClick={() => setSubModal("mark-result")} className="w-full">
+                    Marcar como No asistió
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSubModal("cancel")}
+                    className="w-full text-red-500 hover:text-red-600"
+                  >
+                    Cancelar cita
+                  </Button>
+                </>
+              )}
+
+              {(status === "COMPLETED" || status === "NO_SHOW") && (
+                <Button variant="outline" onClick={() => setSubModal("mark-result")} className="w-full">
+                  {status === "COMPLETED" ? "Corregir a No asistió" : "Corregir a Completada"}
+                </Button>
+              )}
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -156,14 +158,14 @@ export function AppointmentDetailModal({
         open={subModal === "cancel"}
         appointment={appointment}
         onClose={() => setSubModal(null)}
-        onConfirm={(id, reason) => { handleCancel(id, reason); setSubModal(null); onClose(); }}
+        onConfirm={handleCancel}
       />
 
       <MarkResultModal
         open={subModal === "mark-result"}
         appointment={appointment}
         onClose={() => setSubModal(null)}
-        onConfirm={(id, result) => { handleMarkResult(id, result); setSubModal(null); onClose(); }}
+        onConfirm={handleMarkResult}
       />
     </>
   );

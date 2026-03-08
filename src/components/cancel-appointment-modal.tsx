@@ -5,13 +5,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
-import type { Appointment } from "@/lib/mock";
+import type { Appointment } from "@/lib/api";
+import { localDate, localTime } from "@/lib/date-helpers";
 
 type CancelAppointmentModalProps = {
   open: boolean;
   appointment: Appointment | null;
   onClose: () => void;
-  onConfirm: (id: number, reason?: string) => void;
+  onConfirm: (id: string, reason?: string) => void;
 };
 
 export function CancelAppointmentModal({
@@ -22,19 +23,14 @@ export function CancelAppointmentModal({
 }: CancelAppointmentModalProps) {
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(false);
 
   if (!appointment) return null;
 
   function handleConfirm() {
     setSaving(true);
-    setError(false);
-    setTimeout(() => {
-      setSaving(false);
-      onConfirm(appointment!.id, reason || undefined);
-      setReason("");
-      onClose();
-    }, 700);
+    onConfirm(appointment!.id, reason || undefined);
+    setReason("");
+    setSaving(false);
   }
 
   return (
@@ -46,9 +42,11 @@ export function CancelAppointmentModal({
 
         <div className="flex flex-col gap-4 pt-1">
           <div className="rounded-lg bg-zinc-50 px-4 py-3 text-sm">
-            <p className="font-medium text-zinc-900">{appointment.patientName}</p>
-            <p className="text-zinc-500">{appointment.service}</p>
-            <p className="text-zinc-500">{appointment.date} · {appointment.startTime}</p>
+            <p className="font-medium text-zinc-900">{appointment.patient.name}</p>
+            <p className="text-zinc-500">{appointment.service.name}</p>
+            <p className="text-zinc-500">
+              {localDate(appointment.startsAt)} · {localTime(appointment.startsAt)}
+            </p>
           </div>
 
           <Input
@@ -56,10 +54,6 @@ export function CancelAppointmentModal({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
-
-          {error && (
-            <p className="text-xs text-red-500">No se pudo cancelar la cita. Intenta de nuevo.</p>
-          )}
 
           <div className="flex flex-col gap-2">
             <Button

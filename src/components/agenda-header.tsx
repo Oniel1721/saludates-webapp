@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatDateHeader, formatWeekRange, toDateString, addDays, getMondayOf } from "@/lib/mock";
+import { formatDateHeader, formatWeekRange, toDateString, addDays, getMondayOf } from "@/lib/date-helpers";
 
 type AgendaHeaderProps = {
   date: Date;

@@ -1,34 +1,36 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Bell, MessageCircle, AlertTriangle } from "lucide-react";
-import { DevPanel } from "@/components/dev-panel";
-import { MOCK_CONVERSATIONS, FLOW_LABEL, type Conversation } from "@/lib/mock";
+import { Bell, MessageCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useConversations } from "@/lib/hooks/use-conversations";
+import { useNotifications } from "@/lib/hooks/use-notifications";
+import { FLOW_LABEL } from "@/lib/mock";
+import { timeAgo } from "@/lib/date-helpers";
+import type { Conversation } from "@/lib/api";
 
-type PageState = "with-escalations" | "without-escalations" | "empty";
-
-const DEV_STATES = [
-  { label: "Con escalamientos",   value: "with-escalations" as PageState },
-  { label: "Sin escalamientos",   value: "without-escalations" as PageState },
-  { label: "Sin conversaciones",  value: "empty" as PageState },
-];
-
-function getConversations(state: PageState): Conversation[] {
-  if (state === "empty") return [];
-  if (state === "without-escalations")
-    return MOCK_CONVERSATIONS.map((c) => ({ ...c, isEscalated: false }));
-  return MOCK_CONVERSATIONS;
+function getLastMessage(conv: Conversation) {
+  if (!conv.messages.length) return { preview: "", ago: "" };
+  const last = conv.messages[conv.messages.length - 1];
+  return {
+    preview: last.text ?? "",
+    ago: timeAgo(last.sentAt),
+  };
 }
 
 export default function ConversationsPage() {
-  const [pageState, setPageState] = useState<PageState>("with-escalations");
+  const { clinicId } = useAuth();
+  const { data: conversations = [], isLoading } = useConversations(clinicId ?? "");
+  const { data: notifications = [] } = useNotifications(clinicId ?? "", true);
 
-  const conversations = getConversations(pageState).sort((a, b) => {
-    // Escalated always first
-    if (a.isEscalated && !b.isEscalated) return -1;
-    if (!a.isEscalated && b.isEscalated) return 1;
-    return 0;
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
+
+  const sorted = [...conversations].sort((a, b) => {
+    const aEsc = a.flow === "ESCALATED";
+    const bEsc = b.flow === "ESCALATED";
+    if (aEsc && !bEsc) return -1;
+    if (!aEsc && bEsc) return 1;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
 
   return (
@@ -38,14 +40,20 @@ export default function ConversationsPage() {
         <h1 className="text-sm font-semibold text-zinc-900">Conversaciones</h1>
         <Link href="/notifications" className="relative">
           <Bell className="h-5 w-5 text-zinc-500" />
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-            3
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
         </Link>
       </header>
 
       {/* Content */}
-      {conversations.length === 0 ? (
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+        </div>
+      ) : sorted.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
           <MessageCircle className="h-12 w-12 text-zinc-200" />
           <p className="text-sm font-medium text-zinc-500">No hay conversaciones activas.</p>
@@ -55,50 +63,50 @@ export default function ConversationsPage() {
         </div>
       ) : (
         <ul className="divide-y divide-zinc-100">
-          {conversations.map((conv) => (
-            <li key={conv.id}>
-              <Link
-                href={`/conversations/${conv.id}`}
-                className="flex items-start gap-3 px-4 py-4 hover:bg-zinc-50 active:bg-zinc-100"
-              >
-                {/* Avatar / escalation indicator */}
-                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
-                  conv.isEscalated
-                    ? "bg-red-100 text-red-600"
-                    : "bg-zinc-100 text-zinc-600"
-                }`}>
-                  {conv.isEscalated
-                    ? <AlertTriangle className="h-4 w-4" />
-                    : conv.patientName.charAt(0)}
-                </div>
+          {sorted.map((conv) => {
+            const isEscalated = conv.flow === "ESCALATED";
+            const { preview, ago } = getLastMessage(conv);
+            return (
+              <li key={conv.id}>
+                <Link
+                  href={`/conversations/${conv.id}`}
+                  className="flex items-start gap-3 px-4 py-4 hover:bg-zinc-50 active:bg-zinc-100"
+                >
+                  {/* Avatar / escalation indicator */}
+                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                    isEscalated
+                      ? "bg-red-100 text-red-600"
+                      : "bg-zinc-100 text-zinc-600"
+                  }`}>
+                    {isEscalated
+                      ? <AlertTriangle className="h-4 w-4" />
+                      : conv.patient.name.charAt(0)}
+                  </div>
 
-                {/* Content */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm font-medium ${conv.isEscalated ? "text-red-600" : "text-zinc-900"}`}>
-                      {conv.patientName}
-                    </span>
-                    <span className="shrink-0 text-xs text-zinc-400">{conv.lastMessageAgo}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {conv.isEscalated && (
-                      <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
-                        Escalada
+                  {/* Content */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-sm font-medium ${isEscalated ? "text-red-600" : "text-zinc-900"}`}>
+                        {conv.patient.name}
                       </span>
-                    )}
-                    <span className="text-xs text-zinc-400">{FLOW_LABEL[conv.flow]}</span>
+                      <span className="shrink-0 text-xs text-zinc-400">{ago}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {isEscalated && (
+                        <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                          Escalada
+                        </span>
+                      )}
+                      <span className="text-xs text-zinc-400">{FLOW_LABEL[conv.flow]}</span>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-zinc-400">{preview}</p>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-zinc-400">
-                    {conv.lastMessagePreview}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

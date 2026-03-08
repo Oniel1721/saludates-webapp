@@ -16,8 +16,8 @@ const DEV_STATES = [
 ];
 
 const INITIAL_SERVICES: ServiceData[] = [
-  { id: 1, name: "Consulta general", price: 1500, duration: 30 },
-  { id: 2, name: "Consulta de seguimiento", price: 1000, duration: 20 },
+  { id: "1", name: "Consulta general", price: 1500, duration: 30 },
+  { id: "2", name: "Consulta de seguimiento", price: 1000, duration: 20 },
 ];
 
 export default function OnboardingServicesPage() {
@@ -43,7 +43,7 @@ export default function OnboardingServicesPage() {
     if (data.id) {
       setServices((prev) => prev.map((s) => (s.id === data.id ? { ...data } : s)));
     } else {
-      setServices((prev) => [...prev, { ...data, id: Date.now() }]);
+      setServices((prev) => [...prev, { ...data, id: String(Date.now()) }]);
     }
   }
 
