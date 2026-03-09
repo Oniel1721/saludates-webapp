@@ -60,7 +60,6 @@ export default function LoginPage() {
               text="signin_with"
               shape="rectangular"
               size="large"
-              width="100%"
               theme="outline"
             />
           </div>
