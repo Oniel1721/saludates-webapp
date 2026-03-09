@@ -10,6 +10,7 @@ export type AppointmentStatus =
 export type CreatedBy = 'SECRETARY' | 'BOT';
 export type CancelledBy = 'PATIENT' | 'SECRETARY';
 export type WhatsAppStatus = 'DISCONNECTED' | 'PENDING_QR' | 'CONNECTED';
+export type SessionStatus = 'connecting' | 'connected' | 'disconnected' | 'need_scan' | 'logged_out' | 'expired';
 export type UserRole = 'SUPERADMIN' | 'CLINIC_USER';
 
 export type ConversationFlow =
@@ -49,7 +50,6 @@ export interface Clinic {
   authorizedEmails: string[];
   whatsappPhone: string | null;
   whatsappStatus: WhatsAppStatus;
-  onboardingDone: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -175,9 +175,9 @@ export interface SlotCheckResult {
 // ─── WhatsApp ─────────────────────────────────────────────────────────────────
 
 export interface WhatsAppStatusResponse {
-  status: WhatsAppStatus;
+  status: SessionStatus;
   phone: string | null;
-  qr: string | null; // base64 QR image, only when status = PENDING_QR
+  qrCode: string | null; // base64 QR image, only when status = PENDING_QR
 }
 
 // ─── Request bodies ───────────────────────────────────────────────────────────

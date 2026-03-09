@@ -47,7 +47,7 @@ export const clinicIdStore = {
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
 });
 
 // Attach JWT to every request

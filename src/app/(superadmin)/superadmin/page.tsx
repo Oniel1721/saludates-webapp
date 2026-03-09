@@ -20,9 +20,8 @@ export default function SuperadminListPage() {
       c.name.toLowerCase().includes(query.toLowerCase())
   );
 
-  const totalActive = allClinics.filter((c) => c.onboardingDone && c.whatsappStatus === "CONNECTED").length;
-  const totalOnboarding = allClinics.filter((c) => !c.onboardingDone).length;
-  const totalDisconnected = allClinics.filter((c) => c.onboardingDone && c.whatsappStatus !== "CONNECTED").length;
+  const totalActive = allClinics.filter((c) => c.whatsappStatus === "CONNECTED").length;
+  const totalDisconnected = allClinics.filter((c) => c.whatsappStatus !== "CONNECTED").length;
 
   return (
     <div className="flex flex-col">
@@ -64,10 +63,9 @@ export default function SuperadminListPage() {
           {allClinics.length > 0 && (
             <div className="flex divide-x divide-zinc-200 border-b border-zinc-200 bg-white">
               {[
-                { label: "Total",       value: allClinics.length },
-                { label: "Activos",     value: totalActive },
-                { label: "Onboarding",  value: totalOnboarding },
-                { label: "Sin WhatsApp",value: totalDisconnected },
+                { label: "Total",        value: allClinics.length },
+                { label: "Activos",      value: totalActive },
+                { label: "Sin WhatsApp", value: totalDisconnected },
               ].map((stat) => (
                 <div key={stat.label} className="flex flex-1 flex-col items-center py-3">
                   <span className="text-base font-semibold text-zinc-900">{stat.value}</span>
@@ -99,11 +97,6 @@ export default function SuperadminListPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-medium text-zinc-900">{clinic.name}</p>
-                        {!clinic.onboardingDone && (
-                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
-                            Onboarding
-                          </span>
-                        )}
                       </div>
                       {clinic.address && (
                         <p className="text-xs text-zinc-500">{clinic.address}</p>

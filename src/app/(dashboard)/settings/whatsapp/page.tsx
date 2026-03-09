@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Loader2, CheckCircle2, XCircle, RefreshCw, Wifi, WifiOff } from "lucide-react";
@@ -13,14 +14,15 @@ import { drPhoneSchema } from "@/lib/phone";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 type PageState =
-  | "loading"
-  | "connected"
-  | "disconnected"
-  | "qr-generating"
-  | "qr-visible"
-  | "qr-expired"
-  | "qr-connecting"
-  | "qr-error";
+  | "loading"        // UI: carga inicial
+  | "qr-generating"  // UI: esperando respuesta del API
+  | "qr-error"       // UI: error inesperado
+  | "connecting"     // SessionStatus: conectando
+  | "need_scan"      // SessionStatus: QR listo para escanear
+  | "connected"      // SessionStatus: conectado
+  | "disconnected"   // SessionStatus: desconectado
+  | "logged_out"     // SessionStatus: sesión cerrada
+  | "expired";       // SessionStatus: sesión expirada
 
 const schema = z.object({ phone: drPhoneSchema });
 type FormValues = z.infer<typeof schema>;
@@ -47,8 +49,7 @@ export default function SettingsWhatsAppPage() {
     if (!clinicId) return;
     api.whatsapp.getStatus(clinicId).then((status) => {
       setConnectedPhone(status.phone);
-      if (status.status === "CONNECTED") setPageState("connected");
-      else setPageState("disconnected");
+      setPageState(status.status === "need_scan" ? "need_scan" : status.status);
     }).catch(() => setPageState("disconnected"));
     return () => stopPolling();
   }, [clinicId]);
@@ -59,16 +60,19 @@ export default function SettingsWhatsAppPage() {
       if (!clinicId) return;
       try {
         const status = await api.whatsapp.getStatus(clinicId);
-        if (status.status === "CONNECTED") {
+        const s = status.status;
+        if (s === "connected") {
           stopPolling();
           setConnectedPhone(status.phone);
           setPageState("connected");
-        } else if (status.status === "PENDING_QR") {
-          if (status.qr) setQrData(status.qr);
-          setPageState("qr-visible");
+        } else if (s === "need_scan") {
+          if (status.qrCode) QRCode.toDataURL(status.qrCode).then(setQrData);
+          setPageState("need_scan");
+        } else if (s === "connecting") {
+          setPageState("connecting");
         } else {
           stopPolling();
-          setPageState("qr-expired");
+          setPageState(s); // disconnected | logged_out | expired
         }
       } catch {
         stopPolling();
@@ -82,13 +86,13 @@ export default function SettingsWhatsAppPage() {
     setPageState("qr-generating");
     try {
       const result = await api.whatsapp.connect(clinicId, { phone: values.phone });
-      if (result.status === "CONNECTED") {
+      if (result.status === "connected") {
         setConnectedPhone(result.phone);
         setPageState("connected");
         return;
       }
-      if (result.qr) setQrData(result.qr);
-      setPageState("qr-visible");
+      if (result.qrCode) QRCode.toDataURL(result.qrCode).then(setQrData);
+      setPageState("need_scan");
       startPolling();
     } catch {
       setPageState("qr-error");
@@ -142,14 +146,18 @@ export default function SettingsWhatsAppPage() {
         </div>
       )}
 
-      {pageState === "disconnected" && (
+      {(pageState === "disconnected" || pageState === "logged_out" || pageState === "expired") && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4">
             <div className="flex items-center gap-3">
               <WifiOff className="h-5 w-5 text-zinc-400" />
               <div>
-                <p className="text-sm font-medium text-zinc-700">Desconectado</p>
-                <p className="text-xs text-zinc-400">El bot no está activo.</p>
+                <p className="text-sm font-medium text-zinc-700">
+                  {pageState === "logged_out" ? "Sesión cerrada" : pageState === "expired" ? "Sesión expirada" : "Desconectado"}
+                </p>
+                <p className="text-xs text-zinc-400">
+                  {pageState === "logged_out" ? "WhatsApp cerró la sesión." : pageState === "expired" ? "La sesión expiró, vuelve a conectar." : "El bot no está activo."}
+                </p>
               </div>
             </div>
             <XCircle className="h-5 w-5 text-zinc-300" />
@@ -185,9 +193,16 @@ export default function SettingsWhatsAppPage() {
         </div>
       )}
 
-      {(pageState === "qr-visible" || pageState === "qr-expired") && (
+      {pageState === "connecting" && (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 p-10">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <p className="text-sm text-zinc-500">Verificando conexión...</p>
+        </div>
+      )}
+
+      {pageState === "need_scan" && (
         <div className="flex flex-col items-center gap-4">
-          <div className={`relative rounded-xl border-2 p-4 ${pageState === "qr-expired" ? "border-zinc-200 opacity-40" : "border-zinc-200"}`}>
+          <div className="relative rounded-xl border-2 border-zinc-200 p-4">
             {qrData ? (
               <img src={qrData} alt="Código QR" className="h-48 w-48" />
             ) : (
@@ -196,27 +211,9 @@ export default function SettingsWhatsAppPage() {
               </div>
             )}
           </div>
-
-          {pageState === "qr-visible" ? (
-            <p className="text-center text-xs text-zinc-400">
-              Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escanea este código
-            </p>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-sm text-zinc-500">El código expiró.</p>
-              <Button variant="outline" size="sm" onClick={handleReconnect}>
-                <RefreshCw className="h-4 w-4" />
-                Generar nuevo código
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {pageState === "qr-connecting" && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-          <p className="text-sm text-zinc-500">Verificando conexión...</p>
+          <p className="text-center text-xs text-zinc-400">
+            Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escanea este código
+          </p>
         </div>
       )}
 

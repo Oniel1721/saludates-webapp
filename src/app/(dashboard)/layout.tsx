@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { getServerClinicId, getServerPayload } from "@/lib/cookies";
 import { redirect } from "next/navigation";
 import { api } from "@/lib/api";
+import { SetupBanner } from "@/components/setup-banner";
 
 export default async function DashboardLayout({
   children,
@@ -38,12 +39,9 @@ export default async function DashboardLayout({
     server: { cookies: cookieStore },
   });
 
-  if (!clinic.onboardingDone) {
-    return redirect("/onboarding/clinic");
-  }
-
   return (
     <div className="flex min-h-screen flex-col">
+      <SetupBanner clinicId={clinicId} whatsappStatus={clinic.whatsappStatus} />
       <main className="flex-1 pb-16">{children}</main>
       <nav className="fixed bottom-0 left-0 right-0 flex h-16 items-center justify-around border-t border-zinc-200 bg-white">
         <Link

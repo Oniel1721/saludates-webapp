@@ -9,13 +9,13 @@ export function formatPhone(raw: string): string {
   return `+${digits[0]} (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
 }
 
-/** "+1 (809) 123-4567" → "18091234567" */
+/** "+1 (809) 123-4567" → "+18091234567" */
 export function parsePhone(input: string): string {
-  return input.replace(/\D/g, "");
+  return "+" + input.replace(/\D/g, "");
 }
 
 export function isValidDRPhone(raw: string): boolean {
-  return new RegExp(`^1(${DR_AREA_CODES.join("|")})\\d{7}$`).test(raw);
+  return new RegExp(`^\\+1(${DR_AREA_CODES.join("|")})\\d{7}$`).test(raw);
 }
 
 export const drPhoneSchema = z
