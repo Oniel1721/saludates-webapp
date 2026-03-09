@@ -1,35 +1,19 @@
-"use client";
+"use server";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { GoogleLogin } from "@react-oauth/google";
-import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { cookies } from "next/headers";
+import { getServerPayload } from "@/lib/cookies";
+import { LoginWithGoogle } from "./login-with-google";
+import { redirect } from "next/navigation";
 
-export default function LoginPage() {
-  const { user, isLoading, login } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      router.replace(user.role === "SUPERADMIN" ? "/superadmin" : "/agenda");
-    }
-  }, [user, isLoading, router]);
-
-  async function handleCredential(credentialResponse: { credential?: string }) {
-    if (!credentialResponse.credential) return;
-    try {
-      const loggedUser = await login(credentialResponse.credential);
-      router.replace(loggedUser.role === "SUPERADMIN" ? "/superadmin" : "/agenda");
-    } catch (err: unknown) {
-      const status = (err as { response?: { status?: number } })?.response?.status;
-      if (status === 401) {
-        alert("Este correo no tiene acceso autorizado. Contacta al administrador.");
-      } else {
-        alert("No pudimos conectarnos. Verifica tu conexión e intenta de nuevo.");
-      }
-    }
+export default async function LoginPage() {
+  const cookieStore = await cookies();
+  const payload = getServerPayload(cookieStore);
+  
+  if (payload?.role === "SUPERADMIN") {
+    return redirect("/superadmin");
+  }
+  else if(payload?.role === "CLINIC_USER"){
+    return redirect("/agenda");
   }
 
   return (
@@ -41,29 +25,14 @@ export default function LoginPage() {
             <span className="text-3xl">🩺</span>
           </div>
           <div className="flex flex-col items-center gap-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Saludates</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+              Saludates
+            </h1>
             <p className="text-sm text-zinc-500">Tu secretaria digital</p>
           </div>
         </div>
 
-        {isLoading ? (
-          <Button disabled variant="outline" className="w-full gap-3 h-11">
-            <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-            Cargando...
-          </Button>
-        ) : (
-          <div className="flex w-full flex-col items-center gap-3">
-            <GoogleLogin
-              onSuccess={handleCredential}
-              onError={() => alert("Error al iniciar sesión con Google.")}
-              useOneTap
-              text="signin_with"
-              shape="rectangular"
-              size="large"
-              theme="outline"
-            />
-          </div>
-        )}
+        <LoginWithGoogle />
       </div>
 
       <p className="absolute bottom-8 text-xs text-zinc-400">
