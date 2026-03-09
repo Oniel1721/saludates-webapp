@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatDateHeader, formatWeekRange, toDateString, addDays, getMondayOf } from "@/lib/date-helpers";
+import { formatWeekRange, toDateString, addDays, getMondayOf } from "@/lib/date-helpers";
 
 type AgendaHeaderProps = {
   date: Date;
@@ -12,32 +11,7 @@ type AgendaHeaderProps = {
 };
 
 export function AgendaHeader({ date, onDateChange }: AgendaHeaderProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const isWeekView = pathname === "/agenda/week";
-
   const monday = getMondayOf(date);
-
-  function goToday() {
-    onDateChange(new Date());
-  }
-
-  function goPrev() {
-    onDateChange(addDays(date, isWeekView ? -7 : -1));
-  }
-
-  function goNext() {
-    onDateChange(addDays(date, isWeekView ? 7 : 1));
-  }
-
-  function switchToDay() {
-    router.push("/agenda");
-  }
-
-  function switchToWeek() {
-    router.push("/agenda/week");
-  }
-
   const isToday = toDateString(date) === toDateString(new Date());
 
   return (
@@ -54,8 +28,8 @@ export function AgendaHeader({ date, onDateChange }: AgendaHeaderProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={goToday}
-          disabled={isToday && !isWeekView}
+          onClick={() => onDateChange(new Date())}
+          disabled={isToday}
           className="h-7 px-2 text-xs text-zinc-500"
         >
           Hoy
@@ -64,38 +38,14 @@ export function AgendaHeader({ date, onDateChange }: AgendaHeaderProps) {
 
       {/* Date navigation */}
       <div className="flex items-center justify-between px-4 pb-2">
-        <button onClick={goPrev} className="rounded-md p-1 hover:bg-zinc-100">
+        <button onClick={() => onDateChange(addDays(date, -7))} className="rounded-md p-1 hover:bg-zinc-100">
           <ChevronLeft className="h-4 w-4 text-zinc-500" />
         </button>
         <span className="text-sm font-medium capitalize text-zinc-800">
-          {isWeekView ? formatWeekRange(monday) : formatDateHeader(date)}
+          {formatWeekRange(monday)}
         </span>
-        <button onClick={goNext} className="rounded-md p-1 hover:bg-zinc-100">
+        <button onClick={() => onDateChange(addDays(date, 7))} className="rounded-md p-1 hover:bg-zinc-100">
           <ChevronRight className="h-4 w-4 text-zinc-500" />
-        </button>
-      </div>
-
-      {/* View tabs */}
-      <div className="flex border-t border-zinc-100">
-        <button
-          onClick={switchToDay}
-          className={`flex-1 py-2 text-xs font-medium transition-colors ${
-            !isWeekView
-              ? "border-b-2 border-zinc-900 text-zinc-900"
-              : "text-zinc-400 hover:text-zinc-600"
-          }`}
-        >
-          Día
-        </button>
-        <button
-          onClick={switchToWeek}
-          className={`flex-1 py-2 text-xs font-medium transition-colors ${
-            isWeekView
-              ? "border-b-2 border-zinc-900 text-zinc-900"
-              : "text-zinc-400 hover:text-zinc-600"
-          }`}
-        >
-          Semana
         </button>
       </div>
     </header>
