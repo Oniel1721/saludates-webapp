@@ -1,3 +1,4 @@
+import { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
 import { apiClient } from '../client';
 import type { Clinic, CreateClinicBody, UpdateClinicBody } from '../types';
 
@@ -13,9 +14,13 @@ export const clinics = {
   },
 
   /** Get a clinic by id. */
-  get(clinicId: string) {
+  get(clinicId: string, options?: { server?: { cookies: ReadonlyRequestCookies} }) {
     return apiClient
-      .get<Clinic>(`/clinics/${clinicId}`)
+      .get<Clinic>(`/clinics/${clinicId}`,  {
+        headers: options?.server?.cookies ? {
+          Authorization: `Bearer ${options.server.cookies.get('saludates_token')?.value ?? ''}`,
+        } : undefined,
+      })
       .then((r) => r.data);
   },
 

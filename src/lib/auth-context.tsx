@@ -41,11 +41,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    if(user?.role === 'SUPERADMIN'){
+      clinicIdStore.clear();
+      window.location.href = "/superadmin";
+      return;
+    }
     tokenStore.clear();
     clinicIdStore.clear();
     setUser(null);
     window.location.href = "/login";
-  }, []);
+  }, [user]);
 
   return (
     <AuthContext.Provider

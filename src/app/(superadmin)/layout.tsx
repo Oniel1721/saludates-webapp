@@ -1,7 +1,18 @@
+'use server'
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Shield } from "lucide-react";
+import { getServerPayload } from "@/lib/cookies";
+import { redirect } from "next/navigation";
 
-export default function SuperadminLayout({ children }: { children: React.ReactNode }) {
+export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies();
+  const payload = getServerPayload(cookieStore);
+  
+  if(payload?.role !== "SUPERADMIN") {
+    return redirect("/");
+  }
+  
   return (
     <div className="flex min-h-screen flex-col bg-zinc-50">
       {/* Top bar */}
