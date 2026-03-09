@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { OnboardingProgress } from "@/components/onboarding-progress";
-import { DevPanel } from "@/components/dev-panel";
 import { Loader2, CheckCircle2, RefreshCw } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 
 const schema = z.object({
   phone: drPhoneSchema,
@@ -28,56 +29,81 @@ type PageState =
   | "connected"
   | "error";
 
-const DEV_STATES = [
-  { label: "Ingresando número", value: "entering-number" as PageState },
-  { label: "Generando QR", value: "generating-qr" as PageState },
-  { label: "QR visible", value: "qr-visible" as PageState },
-  { label: "QR expirado", value: "qr-expired" as PageState },
-  { label: "Conectando", value: "connecting" as PageState },
-  { label: "Conectado", value: "connected" as PageState },
-  { label: "Error", value: "error" as PageState },
-];
-
-const QR_TIMEOUT = 60;
+const POLL_INTERVAL = 3000; // 3s
 
 export default function OnboardingWhatsAppPage() {
   const router = useRouter();
+  const { clinicId } = useAuth();
   const [state, setState] = useState<PageState>("entering-number");
-  const [timer, setTimer] = useState(QR_TIMEOUT);
+  const [qrData, setQrData] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(schema),
     defaultValues: { phone: "" },
   });
 
-  useEffect(() => {
-    if (state !== "qr-visible") return;
-    setTimer(QR_TIMEOUT);
-    const interval = setInterval(() => {
-      setTimer((t) => {
-        if (t <= 1) {
-          clearInterval(interval);
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  useEffect(() => () => stopPolling(), []);
+
+  function startPolling() {
+    stopPolling();
+    pollRef.current = setInterval(async () => {
+      if (!clinicId) return;
+      try {
+        const status = await api.whatsapp.getStatus(clinicId);
+        if (status.status === "CONNECTED") {
+          stopPolling();
+          setState("connected");
+        } else if (status.status === "PENDING_QR") {
+          if (status.qr) setQrData(status.qr);
+          setState("qr-visible");
+        } else {
+          // DISCONNECTED — QR expired or not yet created
+          stopPolling();
           setState("qr-expired");
-          return 0;
         }
-        return t - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [state]);
-
-  function onSubmit() {
-    setState("generating-qr");
-    setTimeout(() => setState("qr-visible"), 1500);
+      } catch {
+        stopPolling();
+        setState("error");
+      }
+    }, POLL_INTERVAL);
   }
 
-  function handleGenerateQR() {
+  async function requestQr(phone: string) {
+    if (!clinicId) return;
+    setErrorMsg("");
     setState("generating-qr");
-    setTimeout(() => setState("qr-visible"), 1500);
+    try {
+      const result = await api.whatsapp.connect(clinicId, { phone });
+      if (result.status === "CONNECTED") {
+        setState("connected");
+        return;
+      }
+      if (result.qr) setQrData(result.qr);
+      setState("qr-visible");
+      startPolling();
+    } catch {
+      setErrorMsg("No pudimos generar el código QR. Intenta de nuevo.");
+      setState("error");
+    }
   }
 
-  const minutes = Math.floor(timer / 60);
-  const seconds = timer % 60;
+  async function onSubmit(values: FormValues) {
+    await requestQr(values.phone);
+  }
+
+  async function handleGenerateQR() {
+    const phone = form.getValues("phone");
+    await requestQr(phone);
+  }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
@@ -129,42 +155,19 @@ export default function OnboardingWhatsAppPage() {
           {(state === "qr-visible" || state === "qr-expired") && (
             <div className="flex flex-col items-center gap-4">
               <div className={`relative rounded-xl border-2 p-4 ${state === "qr-expired" ? "border-zinc-200 opacity-40" : "border-zinc-200"}`}>
-                <svg viewBox="0 0 100 100" className="h-48 w-48" aria-label="Código QR">
-                  <rect width="100" height="100" fill="white" />
-                  <rect x="5" y="5" width="30" height="30" fill="black" rx="2" />
-                  <rect x="8" y="8" width="24" height="24" fill="white" rx="1" />
-                  <rect x="11" y="11" width="18" height="18" fill="black" rx="1" />
-                  <rect x="65" y="5" width="30" height="30" fill="black" rx="2" />
-                  <rect x="68" y="8" width="24" height="24" fill="white" rx="1" />
-                  <rect x="71" y="11" width="18" height="18" fill="black" rx="1" />
-                  <rect x="5" y="65" width="30" height="30" fill="black" rx="2" />
-                  <rect x="8" y="68" width="24" height="24" fill="white" rx="1" />
-                  <rect x="11" y="71" width="18" height="18" fill="black" rx="1" />
-                  {[40,45,50,55,60].map((x) =>
-                    [5,10,15,20,25,30].map((y) => (
-                      <rect key={`${x}-${y}`} x={x} y={y} width="4" height="4" fill={(x + y) % 7 < 3 ? "black" : "white"} />
-                    ))
-                  )}
-                  {[5,15,25,35,45,55,65,75,85].map((x) =>
-                    [40,50,60,70,80,90].map((y) => (
-                      <rect key={`d-${x}-${y}`} x={x} y={y} width="4" height="4" fill={(x * y) % 11 < 5 ? "black" : "white"} />
-                    ))
-                  )}
-                </svg>
+                {qrData ? (
+                  <img src={qrData} alt="Código QR" className="h-48 w-48" />
+                ) : (
+                  <div className="flex h-48 w-48 items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+                  </div>
+                )}
               </div>
 
               {state === "qr-visible" ? (
-                <div className="flex flex-col items-center gap-1">
-                  <p className="text-xs text-zinc-500">
-                    El código expira en{" "}
-                    <span className="font-medium text-zinc-900">
-                      {minutes}:{seconds.toString().padStart(2, "0")}
-                    </span>
-                  </p>
-                  <p className="text-center text-xs text-zinc-400">
-                    Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escanea este código
-                  </p>
-                </div>
+                <p className="text-center text-xs text-zinc-400">
+                  Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escanea este código
+                </p>
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   <p className="text-sm text-zinc-500">El código expiró.</p>
@@ -193,7 +196,7 @@ export default function OnboardingWhatsAppPage() {
 
           {state === "error" && (
             <div className="flex flex-col items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-6">
-              <p className="text-sm text-red-600">No pudimos conectar. Intenta de nuevo.</p>
+              <p className="text-sm text-red-600">{errorMsg || "No pudimos conectar. Intenta de nuevo."}</p>
               <Button variant="outline" size="sm" onClick={handleGenerateQR}>
                 <RefreshCw className="h-4 w-4" />
                 Reintentar
@@ -212,7 +215,6 @@ export default function OnboardingWhatsAppPage() {
 
       </div>
 
-      <DevPanel states={DEV_STATES} current={state} onSelect={setState} />
     </div>
   );
 }

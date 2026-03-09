@@ -8,7 +8,7 @@ import { AppointmentDetailModal } from "@/components/appointment-detail-modal";
 import { useAuth } from "@/lib/auth-context";
 import { useConversation, useResolveConversation } from "@/lib/hooks/use-conversations";
 import { useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
-import { FLOW_LABEL } from "@/lib/mock";
+import { FLOW_LABEL } from "@/lib/constants";
 import { formatPhone } from "@/lib/phone";
 import type { Appointment } from "@/lib/api";
 

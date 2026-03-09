@@ -7,7 +7,7 @@ import { CancelAppointmentModal } from "@/components/cancel-appointment-modal";
 import { MarkResultModal } from "@/components/mark-result-modal";
 import { ExternalLink } from "lucide-react";
 import type { Appointment } from "@/lib/api";
-import { STATUS_LABEL, STATUS_DOT } from "@/lib/mock";
+import { STATUS_LABEL, STATUS_DOT } from "@/lib/constants";
 import { localDate, localTime } from "@/lib/date-helpers";
 import { formatPhone as fmtPhone } from "@/lib/phone";
 

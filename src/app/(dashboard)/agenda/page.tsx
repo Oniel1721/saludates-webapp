@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useAppointments, useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
 import { useSchedule } from "@/lib/hooks/use-availability";
 import type { Appointment, Schedule } from "@/lib/api";
-import { STATUS_COLORS, STATUS_DOT } from "@/lib/mock";
+import { STATUS_COLORS, STATUS_DOT } from "@/lib/constants";
 import { localDate, localTime, toDateString } from "@/lib/date-helpers";
 
 const HOUR_HEIGHT = 64; // px per hour

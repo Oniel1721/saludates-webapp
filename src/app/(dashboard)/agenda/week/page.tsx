@@ -9,7 +9,7 @@ import { CreateAppointmentModal } from "@/components/create-appointment-modal";
 import { useAuth } from "@/lib/auth-context";
 import { useAppointments, useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
 import { useSchedule } from "@/lib/hooks/use-availability";
-import { STATUS_COLORS, STATUS_DOT } from "@/lib/mock";
+import { STATUS_COLORS, STATUS_DOT } from "@/lib/constants";
 import { getMondayOf, addDays, toDateString, localDate, localTime } from "@/lib/date-helpers";
 import type { Appointment, Schedule } from "@/lib/api";
 

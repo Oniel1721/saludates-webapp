@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { OnboardingProgress } from "@/components/onboarding-progress";
-import { DevPanel } from "@/components/dev-panel";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 
 const schema = z.object({
   name: z.string().min(1, "Este campo es requerido."),
@@ -18,25 +19,26 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
-type PageState = "idle" | "saving";
-
-const DEV_STATES = [
-  { label: "Vacío", value: "idle" as PageState },
-  { label: "Guardando", value: "saving" as PageState },
-];
 
 export default function OnboardingClinicPage() {
   const router = useRouter();
-  const [pageState, setPageState] = useState<PageState>("idle");
+  const { clinicId } = useAuth();
+  const [error, setError] = useState("");
 
   const form = useForm<FormValues>({
     resolver: standardSchemaResolver(schema),
     defaultValues: { name: "", address: "" },
   });
 
-  function onSubmit() {
-    setPageState("saving");
-    setTimeout(() => router.push("/onboarding/whatsapp"), 1000);
+  async function onSubmit(values: FormValues) {
+    if (!clinicId) return;
+    setError("");
+    try {
+      await api.clinics.update(clinicId, { name: values.name, address: values.address });
+      router.push("/onboarding/whatsapp");
+    } catch {
+      setError("No pudimos guardar. Intenta de nuevo.");
+    }
   }
 
   return (
@@ -80,8 +82,10 @@ export default function OnboardingClinicPage() {
               )}
             />
 
-            <Button type="submit" disabled={pageState === "saving"} className="w-full mt-2">
-              {pageState === "saving" ? (
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
+            <Button type="submit" disabled={form.formState.isSubmitting} className="w-full mt-2">
+              {form.formState.isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Guardando...
@@ -94,8 +98,6 @@ export default function OnboardingClinicPage() {
         </Form>
 
       </div>
-
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

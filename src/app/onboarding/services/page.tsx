@@ -1,33 +1,24 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { OnboardingProgress } from "@/components/onboarding-progress";
-import { DevPanel } from "@/components/dev-panel";
 import { ServiceModal, type ServiceData } from "@/components/service-modal";
-import { Pencil, Plus } from "lucide-react";
-
-type PageState = "empty" | "with-services";
-
-const DEV_STATES = [
-  { label: "Sin servicios", value: "empty" as PageState },
-  { label: "Con servicios", value: "with-services" as PageState },
-];
-
-const INITIAL_SERVICES: ServiceData[] = [
-  { id: "1", name: "Consulta general", price: 1500, duration: 30 },
-  { id: "2", name: "Consulta de seguimiento", price: 1000, duration: 20 },
-];
+import { Pencil, Plus, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/lib/auth-context";
+import { useServices, useCreateService, useUpdateService } from "@/lib/hooks/use-services";
 
 export default function OnboardingServicesPage() {
   const router = useRouter();
-  const [pageState, setPageState] = useState<PageState>("with-services");
-  const [services, setServices] = useState<ServiceData[]>(INITIAL_SERVICES);
+  const { clinicId } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceData | undefined>();
+  const [saving, setSaving] = useState(false);
 
-  const displayServices = pageState === "empty" ? [] : services;
+  const { data: services = [], isLoading } = useServices(clinicId ?? "");
+  const createService = useCreateService(clinicId ?? "");
+  const updateService = useUpdateService(clinicId ?? "");
 
   function handleAdd() {
     setEditingService(undefined);
@@ -39,13 +30,37 @@ export default function OnboardingServicesPage() {
     setModalOpen(true);
   }
 
-  function handleSave(data: ServiceData) {
-    if (data.id) {
-      setServices((prev) => prev.map((s) => (s.id === data.id ? { ...data } : s)));
-    } else {
-      setServices((prev) => [...prev, { ...data, id: String(Date.now()) }]);
+  async function handleSave(data: ServiceData) {
+    setSaving(true);
+    try {
+      if (data.id) {
+        await updateService.mutateAsync({
+          id: data.id,
+          body: { name: data.name, price: data.price, durationMinutes: data.duration },
+        });
+      } else {
+        await createService.mutateAsync({
+          name: data.name,
+          price: data.price,
+          durationMinutes: data.duration,
+        });
+      }
+    } finally {
+      setSaving(false);
     }
   }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+      </div>
+    );
+  }
+
+  const displayServices: ServiceData[] = services
+    .filter((s) => !s.archivedAt)
+    .map((s) => ({ id: s.id, name: s.name, price: s.price, duration: s.durationMinutes }));
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
@@ -112,7 +127,6 @@ export default function OnboardingServicesPage() {
         showPriceWarning={false}
       />
 
-      <DevPanel states={DEV_STATES} current={pageState} onSelect={setPageState} />
     </div>
   );
 }

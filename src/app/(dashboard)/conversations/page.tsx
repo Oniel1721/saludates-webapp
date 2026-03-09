@@ -5,7 +5,7 @@ import { Bell, MessageCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useConversations } from "@/lib/hooks/use-conversations";
 import { useNotifications } from "@/lib/hooks/use-notifications";
-import { FLOW_LABEL } from "@/lib/mock";
+import { FLOW_LABEL } from "@/lib/constants";
 import { timeAgo } from "@/lib/date-helpers";
 import type { Conversation } from "@/lib/api";
 

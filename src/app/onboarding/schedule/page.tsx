@@ -5,38 +5,35 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { OnboardingProgress } from "@/components/onboarding-progress";
-import { DevPanel } from "@/components/dev-panel";
 import { Loader2 } from "lucide-react";
-
-type PageState = "idle" | "saving" | "time-error";
-
-const DEV_STATES = [
-  { label: "Con días activos", value: "idle" as PageState },
-  { label: "Error de horario", value: "time-error" as PageState },
-  { label: "Guardando", value: "saving" as PageState },
-];
+import { useAuth } from "@/lib/auth-context";
+import { api } from "@/lib/api";
 
 type DaySchedule = {
   label: string;
+  dayOfWeek: number; // 0=Dom … 6=Sab
   active: boolean;
   open: string;
   close: string;
 };
 
 const DEFAULT_SCHEDULE: DaySchedule[] = [
-  { label: "Lunes",     active: true,  open: "08:00", close: "17:00" },
-  { label: "Martes",    active: true,  open: "08:00", close: "17:00" },
-  { label: "Miércoles", active: true,  open: "08:00", close: "17:00" },
-  { label: "Jueves",    active: true,  open: "08:00", close: "17:00" },
-  { label: "Viernes",   active: true,  open: "08:00", close: "17:00" },
-  { label: "Sábado",    active: false, open: "08:00", close: "17:00" },
-  { label: "Domingo",   active: false, open: "08:00", close: "17:00" },
+  { label: "Lunes",     dayOfWeek: 1, active: true,  open: "08:00", close: "17:00" },
+  { label: "Martes",    dayOfWeek: 2, active: true,  open: "08:00", close: "17:00" },
+  { label: "Miércoles", dayOfWeek: 3, active: true,  open: "08:00", close: "17:00" },
+  { label: "Jueves",    dayOfWeek: 4, active: true,  open: "08:00", close: "17:00" },
+  { label: "Viernes",   dayOfWeek: 5, active: true,  open: "08:00", close: "17:00" },
+  { label: "Sábado",    dayOfWeek: 6, active: false, open: "08:00", close: "17:00" },
+  { label: "Domingo",   dayOfWeek: 0, active: false, open: "08:00", close: "17:00" },
 ];
 
 export default function OnboardingSchedulePage() {
   const router = useRouter();
-  const [state, setState] = useState<PageState>("idle");
+  const { clinicId } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [timeError, setTimeError] = useState(false);
   const [schedule, setSchedule] = useState<DaySchedule[]>(DEFAULT_SCHEDULE);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const hasActiveDay = schedule.some((d) => d.active);
 
@@ -44,18 +41,34 @@ export default function OnboardingSchedulePage() {
     setSchedule((prev) => prev.map((d, i) => (i === index ? { ...d, ...changes } : d)));
   }
 
-  function hasTimeError(day: DaySchedule) {
-    return state === "time-error" && day.active && day.open >= day.close;
+  function hasTimeErrorForDay(day: DaySchedule) {
+    return timeError && day.active && day.open >= day.close;
   }
 
-  function handleFinish() {
-    const hasError = schedule.some((d) => d.active && d.open >= d.close);
-    if (hasError) {
-      setState("time-error");
+  async function handleFinish() {
+    const hasErr = schedule.some((d) => d.active && d.open >= d.close);
+    if (hasErr) {
+      setTimeError(true);
       return;
     }
-    setState("saving");
-    setTimeout(() => router.push("/agenda"), 1200);
+    if (!clinicId) return;
+    setSaving(true);
+    setErrorMsg("");
+    try {
+      await api.availability.upsertSchedule(clinicId, {
+        schedule: schedule.map((d) => ({
+          dayOfWeek: d.dayOfWeek,
+          isActive: d.active,
+          startTime: d.open,
+          endTime: d.close,
+        })),
+      });
+      router.push("/agenda");
+    } catch {
+      setErrorMsg("No pudimos guardar el horario. Intenta de nuevo.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -100,7 +113,7 @@ export default function OnboardingSchedulePage() {
                   <span className="text-xs text-zinc-400">Cerrado</span>
                 )}
               </div>
-              {hasTimeError(day) && (
+              {hasTimeErrorForDay(day) && (
                 <p className="pl-10 text-xs text-red-500">
                   La hora de cierre debe ser posterior a la de apertura.
                 </p>
@@ -113,12 +126,14 @@ export default function OnboardingSchedulePage() {
           <p className="text-center text-sm text-zinc-400">Activa al menos un día para continuar.</p>
         )}
 
+        {errorMsg && <p className="text-center text-sm text-red-500">{errorMsg}</p>}
+
         <Button
           onClick={handleFinish}
-          disabled={!hasActiveDay || state === "saving"}
+          disabled={!hasActiveDay || saving}
           className="w-full"
         >
-          {state === "saving" ? (
+          {saving ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
               Configurando...
@@ -130,7 +145,6 @@ export default function OnboardingSchedulePage() {
 
       </div>
 
-      <DevPanel states={DEV_STATES} current={state} onSelect={setState} />
     </div>
   );
 }

@@ -255,6 +255,12 @@ export interface UpdateClinicBody {
   address?: string;
 }
 
+export interface CreateClinicBody {
+  name: string;
+  address: string;
+  authorizedEmails: string[];
+}
+
 export interface ConnectWhatsAppBody {
   phone: string;
 }

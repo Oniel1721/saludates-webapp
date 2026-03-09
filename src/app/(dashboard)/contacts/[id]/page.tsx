@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { usePatient } from "@/lib/hooks/use-patients";
 import { useAppointments, useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
 import { useConversations } from "@/lib/hooks/use-conversations";
-import { STATUS_LABEL, STATUS_DOT } from "@/lib/mock";
+import { STATUS_LABEL, STATUS_DOT } from "@/lib/constants";
 import { localDate, localTime, timeAgo } from "@/lib/date-helpers";
 import { formatPhone } from "@/lib/phone";
 import type { Appointment } from "@/lib/api";
