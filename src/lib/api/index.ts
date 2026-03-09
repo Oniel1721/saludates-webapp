@@ -1,4 +1,4 @@
-export { tokenStore } from './client';
+export { tokenStore, clinicIdStore } from './client';
 export * from './types';
 
 import { auth } from './resources/auth';

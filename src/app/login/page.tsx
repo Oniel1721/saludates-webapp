@@ -13,18 +13,18 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      router.replace("/agenda");
+      router.replace(user.role === "SUPERADMIN" ? "/superadmin" : "/agenda");
     }
   }, [user, isLoading, router]);
 
   async function handleCredential(credentialResponse: { credential?: string }) {
     if (!credentialResponse.credential) return;
     try {
-      await login(credentialResponse.credential);
-      router.replace("/agenda");
+      const loggedUser = await login(credentialResponse.credential);
+      router.replace(loggedUser.role === "SUPERADMIN" ? "/superadmin" : "/agenda");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("not authorized")) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 401) {
         alert("Este correo no tiene acceso autorizado. Contacta al administrador.");
       } else {
         alert("No pudimos conectarnos. Verifica tu conexión e intenta de nuevo.");

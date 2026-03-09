@@ -1,14 +1,14 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { api, tokenStore } from "@/lib/api";
+import { api, tokenStore, clinicIdStore } from "@/lib/api";
 import type { AuthUser } from "@/lib/api";
 
 interface AuthContextValue {
   user: AuthUser | null;
   clinicId: string | null;
   isLoading: boolean;
-  login: (idToken: string) => Promise<void>;
+  login: (idToken: string) => Promise<AuthUser>;
   logout: () => void;
 }
 
@@ -32,14 +32,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  const login = useCallback(async (idToken: string) => {
+  const login = useCallback(async (idToken: string): Promise<AuthUser> => {
     const { accessToken, user } = await api.auth.googleVerify({ idToken });
     tokenStore.set(accessToken);
+    if (user.clinicId) clinicIdStore.set(user.clinicId);
     setUser(user);
+    return user;
   }, []);
 
   const logout = useCallback(() => {
     tokenStore.clear();
+    clinicIdStore.clear();
     setUser(null);
     window.location.href = "/login";
   }, []);
