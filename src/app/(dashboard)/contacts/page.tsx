@@ -17,20 +17,20 @@ export default function ContactsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       {/* Header */}
-      <header className="border-b border-zinc-100 px-4 py-3">
-        <h1 className="text-sm font-semibold text-zinc-900">Contactos</h1>
+      <header className="border-b border-zinc-100 px-4 py-4">
+        <h1 className="text-lg font-semibold text-zinc-900">Contactos</h1>
       </header>
 
       {/* Search */}
-      <div className="border-b border-zinc-100 px-4 py-2">
-        <div className="flex items-center gap-2 rounded-lg bg-zinc-100 px-3 py-2">
+      <div className="border-b border-zinc-100 px-4 py-3">
+        <div className="flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 focus-within:ring-2 focus-within:ring-emerald-400/40 focus-within:bg-zinc-50 transition-all">
           <Search className="h-4 w-4 shrink-0 text-zinc-400" />
           <input
             type="text"
             placeholder="Buscar paciente..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-transparent text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none"
+            className="w-full bg-transparent text-base text-zinc-800 placeholder:text-zinc-400 focus:outline-none"
           />
         </div>
       </div>
@@ -38,16 +38,16 @@ export default function ContactsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+          <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
         </div>
       ) : sorted.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <Users className="h-12 w-12 text-zinc-200" />
-          <p className="text-sm font-medium text-zinc-500">
+          <Users className="h-14 w-14 text-zinc-200" />
+          <p className="text-base font-medium text-zinc-500">
             {query ? "No se encontraron pacientes." : "No hay contactos registrados."}
           </p>
           {!query && (
-            <p className="text-xs text-zinc-400">
+            <p className="text-sm text-zinc-400">
               Los pacientes aparecerán aquí cuando agenden citas.
             </p>
           )}
@@ -58,18 +58,20 @@ export default function ContactsPage() {
             <li key={patient.id}>
               <Link
                 href={`/contacts/${patient.id}`}
-                className="flex items-center gap-3 px-4 py-4 hover:bg-zinc-50 active:bg-zinc-100"
+                className="flex items-center gap-3 px-4 py-4 hover:bg-zinc-50 active:bg-zinc-100 transition-colors"
               >
                 {/* Avatar */}
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-600">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-base font-semibold text-emerald-700">
                   {patient.name.charAt(0)}
                 </div>
 
                 {/* Info */}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-zinc-900">{patient.name}</p>
-                  <p className="text-xs text-zinc-400">{formatPhone(patient.phone)}</p>
+                  <p className="text-base font-medium text-zinc-900">{patient.name}</p>
+                  <p className="text-sm text-zinc-400">{formatPhone(patient.phone)}</p>
                 </div>
+
+                <span className="text-zinc-300">›</span>
               </Link>
             </li>
           ))}

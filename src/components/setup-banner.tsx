@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowRight } from "lucide-react";
 import { useServices } from "@/lib/hooks/use-services";
 import { useSchedule } from "@/lib/hooks/use-availability";
 import type { WhatsAppStatus } from "@/lib/api";
@@ -52,14 +52,15 @@ export function SetupBanner({ clinicId, whatsappStatus }: SetupBannerProps) {
   if (!banner) return null;
 
   return (
-    <div className="flex items-center gap-3 bg-amber-50 px-4 py-3 text-sm border-b border-amber-100">
+    <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3">
       <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
-      <p className="flex-1 text-amber-800">{banner.message}</p>
+      <p className="flex-1 text-sm text-amber-800">{banner.message}</p>
       <Link
         href={banner.href}
-        className="shrink-0 font-medium text-amber-700 underline underline-offset-2 hover:text-amber-900"
+        className="flex shrink-0 items-center gap-1 text-sm font-semibold text-amber-700 hover:text-amber-900 transition-colors"
       >
         {banner.cta}
+        <ArrowRight className="h-3.5 w-3.5" />
       </Link>
     </div>
   );

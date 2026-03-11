@@ -36,12 +36,15 @@ export default function ConversationsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-        <h1 className="text-sm font-semibold text-zinc-900">Conversaciones</h1>
-        <Link href="/notifications" className="relative">
+      <header className="flex items-center justify-between border-b border-zinc-100 px-4 py-4">
+        <h1 className="text-lg font-semibold text-zinc-900">Conversaciones</h1>
+        <Link
+          href="/notifications"
+          className="relative rounded-lg p-1.5 hover:bg-zinc-100 transition-colors"
+        >
           <Bell className="h-5 w-5 text-zinc-500" />
           {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+            <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -51,13 +54,13 @@ export default function ConversationsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="flex flex-1 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+          <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
         </div>
       ) : sorted.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-          <MessageCircle className="h-12 w-12 text-zinc-200" />
-          <p className="text-sm font-medium text-zinc-500">No hay conversaciones activas.</p>
-          <p className="text-xs text-zinc-400">
+          <MessageCircle className="h-14 w-14 text-zinc-200" />
+          <p className="text-base font-medium text-zinc-500">No hay conversaciones activas.</p>
+          <p className="text-sm text-zinc-400">
             Aquí aparecerán las conversaciones del bot con los pacientes.
           </p>
         </div>
@@ -70,10 +73,10 @@ export default function ConversationsPage() {
               <li key={conv.id}>
                 <Link
                   href={`/conversations/${conv.id}`}
-                  className="flex items-start gap-3 px-4 py-4 hover:bg-zinc-50 active:bg-zinc-100"
+                  className="flex items-start gap-3 px-4 py-4 hover:bg-zinc-50 active:bg-zinc-100 transition-colors"
                 >
                   {/* Avatar / escalation indicator */}
-                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                  <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
                     isEscalated
                       ? "bg-red-100 text-red-600"
                       : "bg-zinc-100 text-zinc-600"
@@ -86,20 +89,20 @@ export default function ConversationsPage() {
                   {/* Content */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-sm font-medium ${isEscalated ? "text-red-600" : "text-zinc-900"}`}>
+                      <span className={`text-base font-semibold ${isEscalated ? "text-red-600" : "text-zinc-900"}`}>
                         {conv.patient.name}
                       </span>
-                      <span className="shrink-0 text-xs text-zinc-400">{ago}</span>
+                      <span className="shrink-0 text-sm text-zinc-400">{ago}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 mt-0.5">
                       {isEscalated && (
-                        <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
                           Escalada
                         </span>
                       )}
-                      <span className="text-xs text-zinc-400">{FLOW_LABEL[conv.flow]}</span>
+                      <span className="text-sm text-zinc-400">{FLOW_LABEL[conv.flow]}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-zinc-400">{preview}</p>
+                    <p className="mt-0.5 truncate text-sm text-zinc-400">{preview}</p>
                   </div>
                 </Link>
               </li>

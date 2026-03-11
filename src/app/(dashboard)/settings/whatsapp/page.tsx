@@ -14,15 +14,15 @@ import { drPhoneSchema } from "@/lib/phone";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 type PageState =
-  | "loading"        // UI: carga inicial
-  | "qr-generating"  // UI: esperando respuesta del API
-  | "qr-error"       // UI: error inesperado
-  | "connecting"     // SessionStatus: conectando
-  | "need_scan"      // SessionStatus: QR listo para escanear
-  | "connected"      // SessionStatus: conectado
-  | "disconnected"   // SessionStatus: desconectado
-  | "logged_out"     // SessionStatus: sesión cerrada
-  | "expired";       // SessionStatus: sesión expirada
+  | "loading"
+  | "qr-generating"
+  | "qr-error"
+  | "connecting"
+  | "need_scan"
+  | "connected"
+  | "disconnected"
+  | "logged_out"
+  | "expired";
 
 const schema = z.object({ phone: drPhoneSchema });
 type FormValues = z.infer<typeof schema>;
@@ -72,7 +72,7 @@ export default function SettingsWhatsAppPage() {
           setPageState("connecting");
         } else {
           stopPolling();
-          setPageState(s); // disconnected | logged_out | expired
+          setPageState(s);
         }
       } catch {
         stopPolling();
@@ -115,7 +115,7 @@ export default function SettingsWhatsAppPage() {
   if (pageState === "loading") {
     return (
       <div className="flex h-48 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
       </div>
     );
   }
@@ -127,18 +127,20 @@ export default function SettingsWhatsAppPage() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
             <div className="flex items-center gap-3">
-              <Wifi className="h-5 w-5 text-emerald-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100">
+                <Wifi className="h-5 w-5 text-emerald-600" />
+              </div>
               <div>
-                <p className="text-sm font-medium text-emerald-800">Conectado</p>
-                {connectedPhone && <p className="text-xs text-emerald-600">{connectedPhone}</p>}
+                <p className="text-base font-semibold text-emerald-800">Conectado</p>
+                {connectedPhone && <p className="text-sm text-emerald-600">{connectedPhone}</p>}
               </div>
             </div>
             <CheckCircle2 className="h-5 w-5 text-emerald-500" />
           </div>
-          <p className="text-xs text-zinc-400">El bot está activo y recibiendo mensajes de WhatsApp.</p>
+          <p className="text-sm text-zinc-400">El bot está activo y recibiendo mensajes de WhatsApp.</p>
           <Button
             variant="outline"
-            className="w-full text-red-500 hover:text-red-600"
+            className="w-full text-red-500 hover:text-red-600 hover:border-red-300 hover:bg-red-50"
             onClick={handleDisconnect}
           >
             Desconectar WhatsApp
@@ -147,24 +149,23 @@ export default function SettingsWhatsAppPage() {
       )}
 
       {(pageState === "disconnected" || pageState === "logged_out" || pageState === "expired") && (
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4">
-            <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
               <WifiOff className="h-5 w-5 text-zinc-400" />
-              <div>
-                <p className="text-sm font-medium text-zinc-700">
-                  {pageState === "logged_out" ? "Sesión cerrada" : pageState === "expired" ? "Sesión expirada" : "Desconectado"}
-                </p>
-                <p className="text-xs text-zinc-400">
-                  {pageState === "logged_out" ? "WhatsApp cerró la sesión." : pageState === "expired" ? "La sesión expiró, vuelve a conectar." : "El bot no está activo."}
-                </p>
-              </div>
             </div>
-            <XCircle className="h-5 w-5 text-zinc-300" />
+            <div>
+              <p className="text-base font-semibold text-zinc-700">
+                {pageState === "logged_out" ? "Sesión cerrada" : pageState === "expired" ? "Sesión expirada" : "Desconectado"}
+              </p>
+              <p className="text-sm text-zinc-400">
+                {pageState === "logged_out" ? "WhatsApp cerró la sesión." : pageState === "expired" ? "La sesión expiró, vuelve a conectar." : "El bot no está activo."}
+              </p>
+            </div>
           </div>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleConnect)} className="flex flex-col gap-3">
+            <form onSubmit={form.handleSubmit(handleConnect)} className="flex flex-col gap-4">
               <FormField
                 control={form.control}
                 name="phone"
@@ -187,40 +188,44 @@ export default function SettingsWhatsAppPage() {
       )}
 
       {pageState === "qr-generating" && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 p-10">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-          <p className="text-sm text-zinc-500">Generando código QR...</p>
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-zinc-200 p-10">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+          <p className="text-base text-zinc-500">Generando código QR...</p>
         </div>
       )}
 
       {pageState === "connecting" && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-zinc-200 p-10">
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-emerald-200 bg-emerald-50/50 p-10">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
-          <p className="text-sm text-zinc-500">Verificando conexión...</p>
+          <p className="text-base text-zinc-600">Verificando conexión...</p>
         </div>
       )}
 
       {pageState === "need_scan" && (
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative rounded-xl border-2 border-zinc-200 p-4">
+        <div className="flex flex-col items-center gap-5">
+          <div className="relative rounded-2xl border-2 border-zinc-200 p-5 shadow-sm">
             {qrData ? (
-              <img src={qrData} alt="Código QR" className="h-48 w-48" />
+              <img src={qrData} alt="Código QR" className="h-52 w-52" />
             ) : (
-              <div className="flex h-48 w-48 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+              <div className="flex h-52 w-52 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
               </div>
             )}
           </div>
-          <p className="text-center text-xs text-zinc-400">
-            Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo → Escanea este código
-          </p>
+          <div className="text-center">
+            <p className="text-base font-medium text-zinc-700">Escanea el código QR</p>
+            <p className="mt-1 text-sm text-zinc-400">
+              WhatsApp → Dispositivos vinculados → Vincular dispositivo
+            </p>
+          </div>
         </div>
       )}
 
       {pageState === "qr-error" && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-6">
-          <p className="text-sm text-red-600">No pudimos conectar. Intenta de nuevo.</p>
-          <Button variant="outline" size="sm" onClick={handleReconnect}>
+        <div className="flex flex-col items-center gap-4 rounded-xl border border-red-200 bg-red-50 p-6">
+          <XCircle className="h-8 w-8 text-red-400" />
+          <p className="text-base font-medium text-red-600">No pudimos conectar. Intenta de nuevo.</p>
+          <Button variant="outline" size="sm" onClick={handleReconnect} className="border-red-300 text-red-600 hover:bg-red-100">
             <RefreshCw className="h-4 w-4" />
             Reintentar
           </Button>

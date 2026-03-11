@@ -7,7 +7,7 @@ import { CancelAppointmentModal } from "@/components/cancel-appointment-modal";
 import { MarkResultModal } from "@/components/mark-result-modal";
 import { ExternalLink } from "lucide-react";
 import type { Appointment } from "@/lib/api";
-import { STATUS_LABEL, STATUS_DOT } from "@/lib/constants";
+import { STATUS_LABEL, STATUS_DOT, STATUS_COLORS } from "@/lib/constants";
 import { localDate, localTime } from "@/lib/date-helpers";
 import { formatPhone as fmtPhone } from "@/lib/phone";
 
@@ -39,6 +39,7 @@ export function AppointmentDetailModal({
 
   const status = appointment.status;
   const dotColor = STATUS_DOT[status];
+  const badgeColor = STATUS_COLORS[status];
   const label = STATUS_LABEL[status];
 
   function handleCancel(id: string, reason?: string) {
@@ -63,14 +64,14 @@ export function AppointmentDetailModal({
 
           <div className="flex flex-col gap-5 pt-1">
             {/* Status badge */}
-            <div className="flex items-center gap-2">
+            <div className={`inline-flex items-center gap-2 self-start rounded-full border px-3 py-1 ${badgeColor}`}>
               <span className={`h-2 w-2 rounded-full ${dotColor}`} />
-              <span className="text-sm font-medium text-zinc-700">{label}</span>
+              <span className="text-sm font-medium">{label}</span>
             </div>
 
             {/* Appointment data */}
-            <div className="flex flex-col gap-2 text-sm">
-              <Row label="Paciente" value={appointment.patient.name} />
+            <div className="flex flex-col gap-3 rounded-xl bg-zinc-50 px-4 py-3">
+              <Row label="Paciente" value={<span className="font-medium text-zinc-900">{appointment.patient.name}</span>} />
               <Row
                 label="WhatsApp"
                 value={
@@ -100,17 +101,6 @@ export function AppointmentDetailModal({
               )}
             </div>
 
-            {/* Info text for terminal states */}
-            {status === "COMPLETED" && (
-              <p className="text-xs text-blue-600">Esta cita fue completada.</p>
-            )}
-            {status === "NO_SHOW" && (
-              <p className="text-xs text-red-500">El paciente no se presentó.</p>
-            )}
-            {status === "CANCELLED" && (
-              <p className="text-xs text-zinc-400">Cita cancelada.</p>
-            )}
-
             {/* Actions */}
             <div className="flex flex-col gap-2">
               {isFuture && (status === "PENDING" || status === "CONFIRMED") && (
@@ -119,7 +109,7 @@ export function AppointmentDetailModal({
                   <Button
                     variant="outline"
                     onClick={() => setSubModal("cancel")}
-                    className="w-full text-red-500 hover:text-red-600"
+                    className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                   >
                     Cancelar cita
                   </Button>
@@ -137,7 +127,7 @@ export function AppointmentDetailModal({
                   <Button
                     variant="outline"
                     onClick={() => setSubModal("cancel")}
-                    className="w-full text-red-500 hover:text-red-600"
+                    className="w-full border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
                   >
                     Cancelar cita
                   </Button>
@@ -160,7 +150,6 @@ export function AppointmentDetailModal({
         onClose={() => setSubModal(null)}
         onConfirm={handleCancel}
       />
-
       <MarkResultModal
         open={subModal === "mark-result"}
         appointment={appointment}
@@ -174,8 +163,8 @@ export function AppointmentDetailModal({
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="shrink-0 text-zinc-400">{label}</span>
-      <span className="text-right text-zinc-800">{value}</span>
+      <span className="shrink-0 text-sm text-zinc-400">{label}</span>
+      <span className="text-right text-sm text-zinc-700">{value}</span>
     </div>
   );
 }

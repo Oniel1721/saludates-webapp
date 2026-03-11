@@ -8,11 +8,12 @@ import { CreateAppointmentModal } from "@/components/create-appointment-modal";
 import { useAuth } from "@/lib/auth-context";
 import { useAppointments, useCancelAppointment, useMarkResult } from "@/lib/hooks/use-appointments";
 import { useSchedule } from "@/lib/hooks/use-availability";
+import { useNotifications } from "@/lib/hooks/use-notifications";
 import { STATUS_COLORS, STATUS_DOT } from "@/lib/constants";
 import { getMondayOf, addDays, toDateString, localDate, localTime } from "@/lib/date-helpers";
 import type { Appointment, Schedule } from "@/lib/api";
 
-const HOUR_HEIGHT = 48;
+const HOUR_HEIGHT = 56;
 const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function deriveScheduleConfig(schedules: Schedule[]) {
@@ -33,7 +34,7 @@ function getTop(time: string, startHour: number): number {
 }
 
 function getHeight(minutes: number): number {
-  return Math.max((minutes * HOUR_HEIGHT) / 60, 20);
+  return Math.max((minutes * HOUR_HEIGHT) / 60, 24);
 }
 
 export default function AgendaPage() {
@@ -44,8 +45,11 @@ export default function AgendaPage() {
 
   const { data: appointments = [] } = useAppointments(clinicId ?? "");
   const { data: schedules = [] } = useSchedule(clinicId ?? "");
+  const { data: notifications = [] } = useNotifications(clinicId ?? "", true);
   const cancelMutation = useCancelAppointment(clinicId ?? "");
   const markResultMutation = useMarkResult(clinicId ?? "");
+
+  const unreadCount = notifications.filter((n) => !n.readAt).length;
 
   const { startHour, endHour, workDays } = deriveScheduleConfig(schedules);
   const HOURS = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
@@ -69,11 +73,11 @@ export default function AgendaPage() {
 
   return (
     <div className="flex flex-col bg-white">
-      <AgendaHeader date={date} onDateChange={setDate} />
+      <AgendaHeader date={date} onDateChange={setDate} unreadCount={unreadCount} />
 
       <div className="flex overflow-x-auto">
         {/* Time column */}
-        <div className="shrink-0 w-10">
+        <div className="shrink-0 w-12">
           <div className="h-10 border-b border-zinc-100" />
           <div className="relative" style={{ height: totalHeight }}>
             {HOURS.map((h) => (
@@ -82,7 +86,7 @@ export default function AgendaPage() {
                 className="absolute left-0 right-0"
                 style={{ top: (h - startHour) * HOUR_HEIGHT }}
               >
-                <span className="block pr-1 pt-0.5 text-right text-[10px] text-zinc-400 leading-none">
+                <span className="block pr-1 pt-0.5 text-right text-xs text-zinc-400 leading-none">
                   {h}:00
                 </span>
               </div>
@@ -102,13 +106,13 @@ export default function AgendaPage() {
               {/* Day header */}
               <div
                 className={`flex h-10 w-full flex-col items-center justify-center border-b border-zinc-100 text-center ${
-                  isToday ? "bg-zinc-900" : ""
+                  isToday ? "bg-emerald-600" : ""
                 }`}
               >
-                <span className={`text-[10px] font-medium ${isToday ? "text-white" : "text-zinc-400"}`}>
+                <span className={`text-xs font-medium ${isToday ? "text-emerald-100" : "text-zinc-400"}`}>
                   {DAY_LABELS[i]}
                 </span>
-                <span className={`text-xs font-semibold ${isToday ? "text-white" : "text-zinc-700"}`}>
+                <span className={`text-sm font-semibold ${isToday ? "text-white" : "text-zinc-700"}`}>
                   {day.getDate()}
                 </span>
               </div>
@@ -128,7 +132,7 @@ export default function AgendaPage() {
 
                 {isClosed && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-[10px] text-zinc-300 -rotate-90 whitespace-nowrap">Cerrado</span>
+                    <span className="text-xs text-zinc-300 -rotate-90 whitespace-nowrap">Cerrado</span>
                   </div>
                 )}
 
@@ -138,15 +142,15 @@ export default function AgendaPage() {
                     <button
                       key={appt.id}
                       onClick={() => setSelected(appt)}
-                      className={`absolute inset-x-0.5 rounded-sm border px-1 text-left transition-opacity hover:opacity-75 ${STATUS_COLORS[appt.status]}`}
+                      className={`absolute inset-x-0.5 rounded-md border px-1 text-left transition-all hover:opacity-80 hover:shadow-sm active:scale-[0.98] ${STATUS_COLORS[appt.status]}`}
                       style={{
                         top: getTop(localTime(appt.startsAt), startHour),
                         height: getHeight(duration),
                       }}
                     >
                       <div className="flex items-center gap-0.5 overflow-hidden">
-                        <span className={`h-1 w-1 shrink-0 rounded-full ${STATUS_DOT[appt.status]}`} />
-                        <span className="truncate text-[10px] font-medium leading-tight">
+                        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[appt.status]}`} />
+                        <span className="truncate text-xs font-medium leading-tight">
                           {appt.patient.name.split(" ")[0]}
                         </span>
                       </div>
@@ -162,7 +166,7 @@ export default function AgendaPage() {
       {/* FAB */}
       <button
         onClick={() => setCreateOpen(true)}
-        className="fixed bottom-20 right-4 flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-3 text-sm font-medium text-white shadow-lg hover:bg-zinc-800"
+        className="fixed bottom-20 right-4 flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-medium text-white shadow-lg hover:bg-emerald-700 active:scale-[0.97] transition-all md:bottom-6"
       >
         <Plus className="h-4 w-4" />
         Nueva cita

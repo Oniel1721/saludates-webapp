@@ -77,7 +77,7 @@ export default function SettingsAvailabilityPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin text-zinc-300" />
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-500" />
       </div>
     );
   }
@@ -87,34 +87,36 @@ export default function SettingsAvailabilityPage() {
       <div className="flex flex-col gap-1">
         {days.map((day, index) => (
           <div key={day.label} className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 py-2.5">
+            <div className="flex items-center gap-3 py-3">
               <Switch
                 checked={day.active}
                 onCheckedChange={(checked) => updateDay(index, { active: checked })}
               />
-              <span className="w-24 text-sm text-zinc-700">{day.label}</span>
+              <span className={`w-24 text-base ${day.active ? "text-zinc-900 font-medium" : "text-zinc-400"}`}>
+                {day.label}
+              </span>
               {day.active ? (
                 <div className="flex items-center gap-1.5">
                   <input
                     type="time"
                     value={day.open}
                     onChange={(e) => updateDay(index, { open: e.target.value })}
-                    className="rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                   />
-                  <span className="text-xs text-zinc-400">–</span>
+                  <span className="text-sm text-zinc-400">–</span>
                   <input
                     type="time"
                     value={day.close}
                     onChange={(e) => updateDay(index, { close: e.target.value })}
-                    className="rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+                    className="rounded-lg border border-zinc-200 px-2.5 py-1.5 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400 transition-all"
                   />
                 </div>
               ) : (
-                <span className="text-xs text-zinc-400">Cerrado</span>
+                <span className="text-sm text-zinc-400">Cerrado</span>
               )}
             </div>
             {timeError && day.active && day.open >= day.close && (
-              <p className="pl-10 text-xs text-red-500">
+              <p className="pl-11 text-sm text-red-500">
                 La hora de cierre debe ser posterior a la de apertura.
               </p>
             )}
@@ -123,20 +125,20 @@ export default function SettingsAvailabilityPage() {
       </div>
 
       {!hasActiveDay && (
-        <p className="text-center text-sm text-zinc-400">
+        <p className="text-center text-base text-zinc-400">
           Activa al menos un día para guardar.
         </p>
       )}
 
       {upsertSchedule.isSuccess && (
-        <div className="flex items-center gap-2 text-sm text-emerald-600">
+        <div className="flex items-center gap-2 text-base text-emerald-600">
           <CheckCircle2 className="h-4 w-4" />
           Horario actualizado.
         </div>
       )}
 
       {upsertSchedule.isError && (
-        <p className="text-sm text-red-500">
+        <p className="text-base text-red-500">
           No pudimos guardar los cambios. Intenta de nuevo.
         </p>
       )}
