@@ -87,7 +87,7 @@ export default function SettingsAvailabilityPage() {
       <div className="flex flex-col gap-1">
         {days.map((day, index) => (
           <div key={day.label} className="flex flex-col gap-1">
-            <div className="flex items-center gap-3 py-3">
+            <div className="flex items-center gap-3 py-3 flex-wrap">
               <Switch
                 checked={day.active}
                 onCheckedChange={(checked) => updateDay(index, { active: checked })}

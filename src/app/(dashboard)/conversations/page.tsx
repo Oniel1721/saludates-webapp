@@ -34,7 +34,7 @@ export default function ConversationsPage() {
   });
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-white overflow-x-hidden">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-zinc-100 px-4 py-4">
         <h1 className="text-lg font-semibold text-zinc-900">Conversaciones</h1>
@@ -87,22 +87,22 @@ export default function ConversationsPage() {
                   </div>
 
                   {/* Content */}
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`text-base font-semibold ${isEscalated ? "text-red-600" : "text-zinc-900"}`}>
+                      <span className={`truncate text-base font-semibold ${isEscalated ? "text-red-600" : "text-zinc-900"}`}>
                         {conv.patient.name}
                       </span>
                       <span className="shrink-0 text-sm text-zinc-400">{ago}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
                       {isEscalated && (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
+                        <span className="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
                           Escalada
                         </span>
                       )}
-                      <span className="text-sm text-zinc-400">{FLOW_LABEL[conv.flow]}</span>
+                      <span className="truncate text-sm text-zinc-400">{FLOW_LABEL[conv.flow]}</span>
                     </div>
-                    <p className="mt-0.5 truncate text-sm text-zinc-400">{preview}</p>
+                    <p className="mt-0.5 truncate text-sm text-zinc-400 max-w-[calc(100dvw-100px)]">{preview}</p>
                   </div>
                 </Link>
               </li>

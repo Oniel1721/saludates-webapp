@@ -203,26 +203,41 @@ export function CreateAppointmentModal({ open, onClose, onSave, defaultDate }: C
             <FormField
               control={form.control}
               name="serviceId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Servicio</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un servicio" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {activeServices.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name} · {s.durationMinutes} min
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const selected = activeServices.find((s) => s.id === field.value);
+                return (
+                  <FormItem>
+                    <FormLabel>Servicio</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          {selected ? (
+                            <span className="flex flex-1 truncate text-left text-sm text-foreground">
+                              {selected.name}
+                            </span>
+                          ) : (
+                            <SelectValue placeholder="Selecciona un servicio" />
+                          )}
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {activeServices.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            <span className="font-medium">{s.name}</span>
+                            <span className="ml-1 text-muted-foreground">· {s.durationMinutes} min · RD${s.price.toLocaleString()}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selected && (
+                      <p className="text-xs text-muted-foreground">
+                        {selected.durationMinutes} min · RD${selected.price.toLocaleString()}
+                      </p>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
 
             {/* Date + Time */}
